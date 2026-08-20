@@ -253,11 +253,6 @@
 
 
   <div class="toolbar">
-    <div class="seg" id="sortSeg">
-      <button data-m="len" class="on">By length</button>
-      <button data-m="score">By score</button>
-      <button data-m="az">A–Z</button>
-    </div>
     <div class="seg" id="listSeg">
       <button data-l="col" class="on" title="Collins Scrabble Words — used everywhere except the US/Canada">Collins</button>
       <button data-l="twl" title="TWL — the North American tournament list">TWL only</button>
@@ -302,7 +297,7 @@ const SRC={
 };
 
 let DICT=null, TWL=null, DICTCOUNT=0, TWLCOUNT=0;
-let rack=[], sortMode="len", listMode="col", srcMode="mw", filter="", results=[], expanded={};
+let rack=[], listMode="col", srcMode="mw", filter="", results=[], expanded={};
 let line=[], found=new Set(), resultMap=new Map();
 
 const REP=[];
@@ -645,17 +640,10 @@ function renderResults(){
     return;
   }
   let html="";
-  if(sortMode==="len"){
-    const groups=new Map();
-    for(const r of list){ if(!groups.has(r.len)) groups.set(r.len,[]); groups.get(r.len).push(r); }
-    for(const L of [...groups.keys()].sort((a,b)=>b-a)){
-      html+=section(`${L} letters`,groups.get(L).sort((a,b)=>b.score-a.score||a.w.localeCompare(b.w)),"L"+L);
-    }
-  }else{
-    const g=[...list];
-    if(sortMode==="score") g.sort((a,b)=>b.score-a.score||b.len-a.len||a.w.localeCompare(b.w));
-    else g.sort((a,b)=>a.w.localeCompare(b.w));
-    html+=section(sortMode==="score"?"Highest scoring first":"Alphabetical",g,"flat");
+  const groups=new Map();
+  for(const r of list){ if(!groups.has(r.len)) groups.set(r.len,[]); groups.get(r.len).push(r); }
+  for(const L of [...groups.keys()].sort((a,b)=>b-a)){
+    html+=section(`${L} letters`,groups.get(L).sort((a,b)=>b.score-a.score||a.w.localeCompare(b.w)),"L"+L);
   }
   box.innerHTML=html;
   box.querySelectorAll(".more").forEach(b=>b.onclick=()=>{expanded[b.dataset.k]=true;renderResults();});
@@ -705,12 +693,6 @@ function applyInput(){
 }
 $("btnApply").onclick=applyInput;
 $("rackInput").addEventListener("keydown",e=>{ if(e.key==="Enter") applyInput(); });
-$("sortSeg").onclick=e=>{
-  const b=e.target.closest("button"); if(!b) return;
-  sortMode=b.dataset.m;
-  [...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));
-  expanded={}; renderResults();
-};
 $("listSeg").onclick=e=>{
   const b=e.target.closest("button"); if(!b) return;
   listMode=b.dataset.l;
