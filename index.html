@@ -9,7 +9,7 @@
     --bg:#10171a; --bg2:#152025; --panel:#1a262c; --line:#26363e;
     --ink:#e8eef0; --dim:#93a7ae; --dim2:#6b8189;
     --tile:#f3e3c3; --tile2:#e3cfa6; --tileink:#2a1d10;
-    --accent:#5fd0a6; --accent2:#f0b429; --collins:#a98bd8;
+    --accent:#5fd0a6; --accent2:#f0b429; --collins:#a98bd8; --bad:#e2796a;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
@@ -53,16 +53,25 @@
   .tile.sm:hover{transform:translateY(-2px)}
   .wordline{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
   .wl-tiles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;min-height:60px}
-  .wl-tiles.hit .tile{animation:pop .34s cubic-bezier(.2,1.5,.4,1)}
-  @keyframes pop{0%{transform:none}45%{transform:translateY(-9px) scale(1.06)}100%{transform:none}}
+  .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
+    box-shadow:0 0 0 3px var(--accent),0 6px 0 #b99f74,0 10px 18px rgba(0,0,0,.45)}
+  .wl-tiles.bad .tile{animation:badshake .42s ease;
+    box-shadow:0 0 0 3px var(--bad),0 6px 0 #b99f74,0 10px 18px rgba(0,0,0,.45)}
+  .wl-tiles.dup .tile{animation:duppulse .42s ease}
+  @keyframes okpop{0%{transform:none}45%{transform:translateY(-10px) scale(1.06)}100%{transform:none}}
+  @keyframes badshake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}
+    60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  @keyframes duppulse{0%,100%{opacity:1}50%{opacity:.45}}
   .wl-empty{color:var(--dim2);font-size:12.5px}
   .wl-bar{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:14px}
   .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);min-height:18px}
   .wl-status.ok{color:var(--accent)}
   .wl-status.dup{color:var(--dim)}
+  .wl-status.bad{color:var(--bad)}
+  .wl-status.building{color:var(--dim)}
   .wl-count{font:500 12px var(--mono);color:var(--dim2)}
   .wl-count b{color:var(--accent);font-weight:650}
-  @media(prefers-reduced-motion:reduce){.wl-tiles.hit .tile{animation:none}.tile.anim{animation:none}}
+  @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
 
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
   button,.stepper{
@@ -75,6 +84,7 @@
   button.primary{background:var(--accent);border-color:var(--accent);color:#08201a;font-weight:700}
   button.primary:hover{background:#74e0b8}
   button.ghost{background:transparent}
+  button:disabled{opacity:.4;pointer-events:none}
   .stepper{padding:4px 6px;gap:4px}
   .stepper button{padding:5px 11px;border:none;background:#2b3d46;border-radius:7px;font-size:15px;line-height:1}
   .stepper .n{min-width:74px;text-align:center;font-size:13px;color:var(--dim)}
@@ -161,6 +171,7 @@
       <div class="wl-tiles" id="wlTiles"></div>
       <div class="wl-bar">
         <div class="wl-status" id="wlStatus"></div>
+        <button class="primary" id="btnSubmit">Submit</button>
         <button class="ghost" id="btnClear">Clear</button>
         <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
       </div>
@@ -338,7 +349,7 @@ function renderRack(noAnim){
 let drag=null;
 const TAPSLOP=6;
 rackEl.addEventListener("pointerdown",e=>{
-  const t=e.target.closest(".tile"); if(!t||drag||t.classList.contains("slot")) return;
+  const t=e.target.closest(".tile"); if(!t||drag||busy||t.classList.contains("slot")) return;
   e.preventDefault();
   const r=t.getBoundingClientRect();
   drag={idx:+t.dataset.i, el:t, sx:e.clientX, sy:e.clientY,
@@ -404,32 +415,52 @@ function markFound(w){
   const el=document.getElementById("results").querySelector(`a.w[data-w="${w}"]`);
   if(el) el.classList.add("found");
 }
-function flash(){
-  wlTiles.classList.remove("hit");
+let busy=false;
+function animate(cls){
+  wlTiles.classList.remove("ok","bad","dup");
   void wlTiles.offsetWidth;
-  wlTiles.classList.add("hit");
+  wlTiles.classList.add(cls);
 }
-function renderLine(){
+function lineWord(){ return line.map(i=>rack[i]).join(""); }
+function setStatus(cls,txt){
+  const st=document.getElementById("wlStatus");
+  st.className="wl-status"+(cls?" "+cls:"");
+  st.textContent=txt;
+}
+/* tiles + counters only — never judges the word */
+function renderTiles(){
   wlTiles.innerHTML = line.length
     ? line.map((i,k)=>`<div class="tile sm" data-k="${k}" title="put it back">${rack[i]}<span class="v">${VAL[rack[i]]}</span></div>`).join("")
     : `<div class="wl-empty">tap a letter above to start building a word</div>`;
-  const w=line.map(i=>rack[i]).join(""), st=document.getElementById("wlStatus");
-  let cls="", txt="";
-  if(w.length>=2){
-    const r=resultMap.get(w);
-    if(!r){ txt=w+" — not a word"; }
-    else if(found.has(w)){ cls="dup"; txt=w+" — already found"; }
-    else{
-      found.add(w); markFound(w); flash();
-      cls="ok"; txt=w+" — "+scoreOf(r)+(r.len===rack.length&&rack.length===7?" · bingo!":"");
-    }
-  }
-  st.className="wl-status"+(cls?" "+cls:"");
-  st.textContent=txt;
+  document.getElementById("btnSubmit").disabled=line.length<2;
   document.getElementById("wlFound").textContent=found.size;
   document.getElementById("wlTotal").textContent=results.length;
 }
+function renderLine(){
+  wlTiles.classList.remove("ok","bad","dup");
+  renderTiles();
+  const w=lineWord();
+  setStatus(w?"building":"", w);
+}
+function submitWord(){
+  if(busy) return;
+  const w=lineWord(); if(w.length<2) return;
+  const r=resultMap.get(w);
+  if(!r){ animate("bad"); setStatus("bad",w+" — not in the list"); return; }
+  if(found.has(w)){ animate("dup"); setStatus("dup",w+" — already found"); return; }
+  found.add(w); markFound(w);
+  document.getElementById("wlFound").textContent=found.size;
+  animate("ok");
+  setStatus("ok",w+" — "+scoreOf(r)+(r.len===rack.length&&rack.length===7?" · bingo!":""));
+  busy=true;
+  setTimeout(()=>{
+    busy=false; line=[];
+    wlTiles.classList.remove("ok");
+    renderRack(true); renderTiles();   // keeps the score on screen
+  },420);
+}
 wlTiles.addEventListener("click",e=>{
+  if(busy) return;
   const t=e.target.closest(".tile"); if(!t) return;
   line.splice(+t.dataset.k,1);
   renderRack(true); renderLine();
@@ -506,6 +537,7 @@ $("btnShuffle").onclick=()=>{
   for(let i=rack.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rack[i],rack[j]]=[rack[j],rack[i]];}
   line=[]; renderRack(); renderLine();
 };
+$("btnSubmit").onclick=submitWord;
 $("btnClear").onclick=()=>{ line=[]; renderRack(true); renderLine(); };
 $("btnPlus").onclick=()=>{ if(rack.length<12) newRack(rack.length+1); };
 $("btnMinus").onclick=()=>{ if(rack.length>2) newRack(rack.length-1); };
@@ -540,7 +572,8 @@ $("filter").addEventListener("input",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
-  if(e.code==="Space"){ e.preventDefault(); newRack(rack.length); }
+  if(e.key==="Enter"){ e.preventDefault(); submitWord(); }
+  else if(e.code==="Space"){ e.preventDefault(); newRack(rack.length); }
   else if(e.key==="s"||e.key==="S"){ $("btnShuffle").click(); }
 });
 
