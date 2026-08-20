@@ -28,19 +28,24 @@
   .panel{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:22px}
 
   /* ---- rack ---- */
-  .rack{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;min-height:78px;align-items:center;touch-action:none}
+  .rack{--tw:64px;--tg:10px;display:flex;gap:var(--tg);flex-wrap:nowrap;justify-content:center;
+    min-height:calc(var(--tw)*1.22);align-items:center;touch-action:none}
   .tile{
-    position:relative;width:64px;height:68px;border-radius:9px;
+    --lift:calc(var(--tw)*.094);
+    position:relative;flex:0 0 auto;width:var(--tw);height:calc(var(--tw)*1.0625);
+    border-radius:calc(var(--tw)*.14);
     background:linear-gradient(160deg,var(--tile),var(--tile2));color:var(--tileink);
-    box-shadow:0 6px 0 #b99f74, 0 10px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);
+    box-shadow:0 var(--lift) 0 #b99f74, 0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.6);
     display:flex;align-items:center;justify-content:center;
-    font:650 34px/1 Georgia,"Times New Roman",serif;
+    font:650 calc(var(--tw)*.53)/1 Georgia,"Times New Roman",serif;
     user-select:none;cursor:grab;touch-action:none;
   }
   .tile.anim{animation:drop .32s cubic-bezier(.2,1.4,.4,1) backwards}
   .tile:active{cursor:grabbing}
-  .tile .v{position:absolute;right:7px;bottom:5px;font:600 11px/1 var(--mono);opacity:.62}
-  .tile.blank{background:linear-gradient(160deg,#e9e6de,#d6d1c4);color:#9a9384;font:600 10px/1 var(--mono);letter-spacing:.14em;border:2px dashed #b9b2a2}
+  .tile .v{position:absolute;right:calc(var(--tw)*.11);bottom:calc(var(--tw)*.078);
+    font:600 calc(var(--tw)*.172)/1 var(--mono);opacity:.62}
+  .tile.blank{background:linear-gradient(160deg,#e9e6de,#d6d1c4);color:#9a9384;font:600 calc(var(--tw)*.156)/1 var(--mono);letter-spacing:.14em;border:2px dashed #b9b2a2}
   .tile.dragging{opacity:.22;box-shadow:none}
   .tile.ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:99;
     box-shadow:0 14px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);cursor:grabbing}
@@ -49,16 +54,15 @@
 
   /* ---- word line ---- */
   .tile.slot{background:none;box-shadow:none;border:2px dashed #2b3d46;cursor:default}
-  .tile.sm{width:52px;height:56px;font:650 28px/1 Georgia,"Times New Roman",serif;cursor:pointer}
-  .tile.sm .v{font-size:10px;right:6px;bottom:4px}
-  .tile.sm.blank{font:600 9px/1 var(--mono);letter-spacing:.12em}
+  .tile.sm{cursor:pointer}
   .tile.sm:hover{transform:translateY(-2px)}
   .wordline{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-  .wl-tiles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;min-height:60px}
+  .wl-tiles{--tw:52px;--tg:8px;display:flex;gap:var(--tg);flex-wrap:nowrap;justify-content:center;
+    align-items:center;min-height:calc(var(--tw)*1.15)}
   .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
-    box-shadow:0 0 0 3px var(--accent),0 6px 0 #b99f74,0 10px 18px rgba(0,0,0,.45)}
+    box-shadow:0 0 0 3px var(--accent),0 var(--lift) 0 #b99f74,0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45)}
   .wl-tiles.bad .tile{animation:badshake .42s ease;
-    box-shadow:0 0 0 3px var(--bad),0 6px 0 #b99f74,0 10px 18px rgba(0,0,0,.45)}
+    box-shadow:0 0 0 3px var(--bad),0 var(--lift) 0 #b99f74,0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45)}
   .wl-tiles.dup .tile{animation:duppulse .42s ease}
   @keyframes okpop{0%{transform:none}45%{transform:translateY(-10px) scale(1.06)}100%{transform:none}}
   @keyframes badshake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}
@@ -66,11 +70,12 @@
   @keyframes duppulse{0%,100%{opacity:1}50%{opacity:.45}}
   .wl-empty{color:var(--dim2);font-size:12.5px}
   .wl-bar{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:14px}
-  .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);min-height:18px}
+  #btnSubmit{padding:13px 32px;font-size:16px;border-radius:12px}
+  .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);
+    min-height:18px;text-align:center;margin-top:12px}
   .wl-status.ok{color:var(--accent)}
   .wl-status.dup{color:var(--dim)}
   .wl-status.bad{color:var(--bad)}
-  .wl-status.building{color:var(--dim)}
   .wl-count{font:500 12px var(--mono);color:var(--dim2)}
   .wl-count b{color:var(--accent);font-weight:650}
   @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
@@ -99,13 +104,6 @@
   #rackInput{background:#0d1417;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
     padding:9px 12px;font:600 15px var(--mono);letter-spacing:.16em;text-transform:uppercase;width:230px}
   #rackInput:focus{outline:none;border-color:var(--accent)}
-
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
-  .stat{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
-  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim2)}
-  .stat .v{font:650 20px/1.25 var(--mono);margin-top:4px}
-  .stat .v small{font-size:12px;color:var(--dim);font-weight:500}
-  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
 
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 6px}
   .seg{display:inline-flex;background:#1a262c;border:1px solid var(--line);border-radius:10px;padding:3px}
@@ -138,7 +136,7 @@
   a.w.full .s{color:var(--accent)}
   a.w.bingo{border-color:var(--accent2);background:rgba(240,180,41,.12)}
   a.w.bingo .s{color:var(--accent2)}
-  a.w.wild{border-style:dashed}
+  a.w.wild{border:2px dashed #fff;padding:5px 8px 5px 9px}
   a.w.found{background:var(--accent);border-color:var(--accent);color:#08201a}
   a.w.found::before{content:"\2713";font-size:10px;font-weight:800;align-self:center}
   a.w.found .s{color:#0b4436}
@@ -149,6 +147,37 @@
   .empty{color:var(--dim2);padding:30px 0;text-align:center;font-size:14px}
   footer{margin-top:44px;color:var(--dim2);font-size:12px;text-align:center;line-height:1.8}
   footer b{color:var(--dim);font-weight:600}
+
+  @media(max-width:720px){
+    .wrap{padding:16px 14px 60px}
+    .panel{padding:16px 14px}
+    header{margin-bottom:14px}
+    h1{font-size:20px}
+    button{padding:12px 16px;font-size:14.5px}
+    .stepper{padding:5px 7px}
+    .stepper button{padding:10px 14px}
+    #btnSubmit{padding:15px 34px;font-size:16.5px}
+    .wordline{margin-top:14px;padding-top:13px}
+    .controls{margin-top:16px}
+  }
+
+  /* short viewports (landscape phones): trade chrome for the fold */
+  @media(max-height:560px){
+    .wrap{padding:10px 14px 40px}
+    header{margin-bottom:8px}
+    h1{font-size:17px}
+    .sub{display:none}
+    .panel{padding:12px 14px}
+    .hint{display:none}
+    .controls{margin-top:10px;gap:7px}
+    button{padding:7px 12px;font-size:13px}
+    .stepper{padding:3px 5px}
+    .stepper button{padding:4px 10px}
+    #btnSubmit{padding:9px 24px;font-size:14px}
+    .wordline{margin-top:10px;padding-top:9px}
+    .wl-bar{margin-top:9px}
+    .wl-status{margin-top:7px}
+  }
 
   #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
     flex-direction:column;gap:14px;z-index:200;color:var(--dim)}
@@ -168,16 +197,16 @@
 
   <div class="panel">
     <div class="rack" id="rack"></div>
-    <div class="hint">tap a letter to play it &middot; drag to rearrange</div>
+    <div class="hint">drag to rearrange</div>
 
     <div class="wordline">
       <div class="wl-tiles" id="wlTiles"></div>
       <div class="wl-bar">
-        <div class="wl-status" id="wlStatus"></div>
         <button class="primary" id="btnSubmit">Submit</button>
         <button class="ghost" id="btnClear">Clear</button>
         <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
       </div>
+      <div class="wl-status" id="wlStatus"></div>
     </div>
     <div class="controls">
       <button class="primary" id="btnNew">New Letters <kbd>space</kbd></button>
@@ -196,13 +225,6 @@
       <button class="primary" id="btnApply">Use these</button>
       <button class="ghost" id="btnCancel">Cancel</button>
     </div>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="k">Words in rack</div><div class="v" id="stTotal">—</div></div>
-    <div class="stat"><div class="k">Longest</div><div class="v" id="stLong">—</div></div>
-    <div class="stat"><div class="k">Best scorer</div><div class="v" id="stBest">—</div></div>
-    <div class="stat"><div class="k">Rack value</div><div class="v" id="stRack">—</div></div>
   </div>
 
   <div class="toolbar">
@@ -226,7 +248,7 @@
   <div class="legend">
     <span><i style="background:var(--accent2)"></i>bingo — uses your whole rack (+50)</span>
     <span><i style="background:var(--accent)"></i>uses every tile</span>
-    <span><i style="border:1px dashed #7e97a1;background:transparent"></i>uses a blank</span>
+    <span><i style="border:1px dashed #fff;background:transparent"></i>uses a blank</span>
     <span><b style="color:var(--collins)">ᶜ</b> Collins only — not valid in North America</span>
     <span>click any word for its definition</span>
   </div>
@@ -343,6 +365,39 @@ function solve(tiles){
 
 /* ---------- rack rendering + drag ---------- */
 const rackEl=document.getElementById("rack");
+const panelEl=document.querySelector(".panel");
+const SIZES=[64,56,48,42,36,31,27,24,21];
+let fitKey="", fitMax=64;
+function applyFit(max){
+  fitRow(rackEl,rack.length,max);
+  fitRow(wlTiles,line.length,Math.max(16,Math.round(max*.82)));
+}
+/* largest tile size where the panel still ends above the fold */
+function fitPage(){
+  if(!innerHeight||!rackEl.clientWidth) return;
+  const key=rack.length+"|"+line.length+"|"+innerWidth+"x"+innerHeight;
+  if(key===fitKey){ applyFit(fitMax); return; }
+  let lo=0, hi=SIZES.length-1, best=SIZES[hi];
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    applyFit(SIZES[mid]);
+    if(panelEl.getBoundingClientRect().bottom<=innerHeight-10){ best=SIZES[mid]; hi=mid-1; }
+    else lo=mid+1;
+  }
+  applyFit(best); fitKey=key; fitMax=best;
+}
+
+/* pick the largest tile size that still lets n tiles share one row */
+function fitRow(el,n,max){
+  if(!n){ el.style.setProperty("--tw",max+"px"); el.style.setProperty("--tg","10px"); return; }
+  const avail=el.clientWidth;
+  if(!avail) return;
+  let w=Math.min(max, avail/(n+0.16*(n-1)));
+  const g=Math.max(3, Math.min(10, Math.round(w*0.16)));
+  w=Math.max(16, Math.min(max, Math.floor((avail-(n-1)*g)/n)));
+  el.style.setProperty("--tw",w+"px");
+  el.style.setProperty("--tg",g+"px");
+}
 function tileFace(t){ return t==="?" ? "BLANK" : t+`<span class="v">${VAL[t]}</span>`; }
 function blankCount(){ return rack.reduce((n,t)=>n+(t==="?"?1:0),0); }
 function renderRack(noAnim){
@@ -352,6 +407,7 @@ function renderRack(noAnim){
     const st=noAnim?"":` style="animation-delay:${i*45}ms"`;
     return `<div class="${cls}" data-i="${i}"${st}>${tileFace(t)}</div>`;
   }).join("");
+  fitPage();
   document.getElementById("tileN").textContent=rack.length;
   document.getElementById("btnBlank").disabled=blankCount()>=MAXBLANK||rack.length>=12;
   document.getElementById("btnUnblank").hidden=blankCount()===0;
@@ -369,6 +425,7 @@ rackEl.addEventListener("pointerdown",e=>{
 function beginDrag(e){
   const t=drag.el, g=t.cloneNode(true);
   g.className=t.className.replace("dragging","").replace("anim","")+" ghost";
+  g.style.setProperty("--tw",drag.w+"px");
   g.style.width=drag.w+"px"; g.style.height=drag.h+"px";
   document.body.appendChild(g);
   drag.g=g;
@@ -458,6 +515,7 @@ function renderTiles(){
   wlTiles.innerHTML = line.length
     ? line.map((i,k)=>`<div class="tile sm${rack[i]==="?"?" blank":""}" data-k="${k}" title="put it back">${tileFace(rack[i])}</div>`).join("")
     : `<div class="wl-empty">tap a letter above to start building a word</div>`;
+  fitPage();
   document.getElementById("btnSubmit").disabled=line.length<2;
   document.getElementById("wlFound").textContent=found.size;
   document.getElementById("wlTotal").textContent=results.length;
@@ -465,8 +523,7 @@ function renderTiles(){
 function renderLine(){
   wlTiles.classList.remove("ok","bad","dup");
   renderTiles();
-  const w=lineWord();
-  setStatus(w?"building":"", w);
+  setStatus("","");
 }
 function submitWord(){
   if(busy) return;
@@ -542,17 +599,6 @@ function renderResults(){
   }
   box.innerHTML=html;
   box.querySelectorAll(".more").forEach(b=>b.onclick=()=>{expanded[b.dataset.k]=true;renderResults();});
-  renderStats(list);
-}
-function renderStats(list){
-  document.getElementById("stTotal").textContent=list.length.toLocaleString();
-  const long=list.reduce((m,r)=>Math.max(m,r.len),0);
-  const longs=list.filter(r=>r.len===long);
-  document.getElementById("stLong").innerHTML=long?`${longs[0].w} <small>${longs.length>1?"+"+(longs.length-1)+" more":""}</small>`:"—";
-  let best=null;
-  for(const r of list){const s=r.score+((r.len===rack.length&&rack.length>=7)?50:0); if(!best||s>best.s) best={w:r.w,s};}
-  document.getElementById("stBest").innerHTML=best?`${best.w} <small>${best.s}</small>`:"—";
-  document.getElementById("stRack").textContent=rack.reduce((s,t)=>s+(t==="?"?0:VAL[t]),0);
 }
 function run(noAnim){
   expanded={}; line=[];
@@ -621,6 +667,11 @@ document.addEventListener("keydown",e=>{
   else if(e.code==="Space"){ e.preventDefault(); newRack(rack.length); }
   else if(e.key==="s"||e.key==="S"){ $("btnShuffle").click(); }
 });
+
+function refit(){ fitKey=""; fitPage(); }
+window.addEventListener("resize",refit);
+window.addEventListener("orientationchange",refit);
+if(window.visualViewport) visualViewport.addEventListener("resize",refit);
 
 loadDict().then(()=>{
   $("dictN").textContent=DICTCOUNT.toLocaleString();
