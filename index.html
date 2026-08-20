@@ -40,6 +40,7 @@
   .tile.anim{animation:drop .32s cubic-bezier(.2,1.4,.4,1) backwards}
   .tile:active{cursor:grabbing}
   .tile .v{position:absolute;right:7px;bottom:5px;font:600 11px/1 var(--mono);opacity:.62}
+  .tile.blank{background:linear-gradient(160deg,#e9e6de,#d6d1c4);color:#9a9384;font:600 10px/1 var(--mono);letter-spacing:.14em;border:2px dashed #b9b2a2}
   .tile.dragging{opacity:.22;box-shadow:none}
   .tile.ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:99;
     box-shadow:0 14px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);cursor:grabbing}
@@ -50,6 +51,7 @@
   .tile.slot{background:none;box-shadow:none;border:2px dashed #2b3d46;cursor:default}
   .tile.sm{width:52px;height:56px;font:650 28px/1 Georgia,"Times New Roman",serif;cursor:pointer}
   .tile.sm .v{font-size:10px;right:6px;bottom:4px}
+  .tile.sm.blank{font:600 9px/1 var(--mono);letter-spacing:.12em}
   .tile.sm:hover{transform:translateY(-2px)}
   .wordline{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
   .wl-tiles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;min-height:60px}
@@ -85,6 +87,7 @@
   button.primary:hover{background:#74e0b8}
   button.ghost{background:transparent}
   button:disabled{opacity:.4;pointer-events:none}
+  button[hidden]{display:none}
   .stepper{padding:4px 6px;gap:4px}
   .stepper button{padding:5px 11px;border:none;background:#2b3d46;border-radius:7px;font-size:15px;line-height:1}
   .stepper .n{min-width:74px;text-align:center;font-size:13px;color:var(--dim)}
@@ -184,10 +187,12 @@
         <span class="n"><b id="tileN">7</b> tiles</span>
         <button id="btnPlus" title="More tiles">+</button>
       </div>
+      <button class="ghost" id="btnBlank">Add blank</button>
+      <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
       <button class="ghost" id="btnEdit">Type my rack</button>
     </div>
     <div id="editRow">
-      <input type="text" id="rackInput" maxlength="12" spellcheck="false" placeholder="e.g. RETINAS">
+      <input type="text" id="rackInput" maxlength="12" spellcheck="false" placeholder="e.g. RETINA?">
       <button class="primary" id="btnApply">Use these</button>
       <button class="ghost" id="btnCancel">Cancel</button>
     </div>
@@ -219,8 +224,9 @@
     </select>
   </div>
   <div class="legend">
-    <span><i style="background:var(--accent2)"></i>bingo — uses all 7 (+50)</span>
+    <span><i style="background:var(--accent2)"></i>bingo — uses your whole rack (+50)</span>
     <span><i style="background:var(--accent)"></i>uses every tile</span>
+    <span><i style="border:1px dashed #7e97a1;background:transparent"></i>uses a blank</span>
     <span><b style="color:var(--collins)">ᶜ</b> Collins only — not valid in North America</span>
     <span>click any word for its definition</span>
   </div>
@@ -230,7 +236,7 @@
   <footer>
     <div><b>Collins / SOWPODS</b> — <span id="dictN"></span> words, 2–12 letters. <b id="twlN"></b> of them are also in the North American <b>TWL</b> list.</div>
     <div>Word lists cross-checked against two independent published copies; every word links out to a dictionary so you can check it yourself.</div>
-    <div>Scores are base tile values only (no board premiums). Tiles are drawn from the real bag, blanks excluded.</div>
+    <div>Scores are base tile values only (no board premiums). Tiles are drawn from the real bag; blanks are yours to add.</div>
   </footer>
 </div>
 
@@ -337,14 +343,18 @@ function solve(tiles){
 
 /* ---------- rack rendering + drag ---------- */
 const rackEl=document.getElementById("rack");
+function tileFace(t){ return t==="?" ? "BLANK" : t+`<span class="v">${VAL[t]}</span>`; }
+function blankCount(){ return rack.reduce((n,t)=>n+(t==="?"?1:0),0); }
 function renderRack(noAnim){
   rackEl.innerHTML=rack.map((t,i)=>{
     if(line.includes(i)) return `<div class="tile slot" data-i="${i}"></div>`;
-    const cls="tile"+(noAnim?"":" anim")+(drag&&drag.g&&drag.idx===i?" dragging":"");
+    const cls="tile"+(t==="?"?" blank":"")+(noAnim?"":" anim")+(drag&&drag.g&&drag.idx===i?" dragging":"");
     const st=noAnim?"":` style="animation-delay:${i*45}ms"`;
-    return `<div class="${cls}" data-i="${i}"${st}>${t}<span class="v">${VAL[t]}</span></div>`;
+    return `<div class="${cls}" data-i="${i}"${st}>${tileFace(t)}</div>`;
   }).join("");
   document.getElementById("tileN").textContent=rack.length;
+  document.getElementById("btnBlank").disabled=blankCount()>=MAXBLANK||rack.length>=12;
+  document.getElementById("btnUnblank").hidden=blankCount()===0;
 }
 let drag=null;
 const TAPSLOP=6;
@@ -408,8 +418,24 @@ function playTile(i){
   if(k>=0) line.splice(k,1); else line.push(i);
   renderRack(true); renderLine();
 }
-function scoreOf(r){
-  return r.score+((r.len===rack.length&&rack.length===7)?50:0);
+/* score straight off the tiles played — a blank contributes nothing */
+function lineScore(){
+  let s=0;
+  for(const i of line) if(rack[i]!=="?") s+=VAL[rack[i]];
+  return s+((line.length===rack.length&&rack.length>=7)?50:0);
+}
+/* every valid word the played tiles can spell; blanks stand in for any letter */
+function lineMatches(){
+  const pat=lineWord();
+  if(!pat.includes("?")) return resultMap.has(pat)?[pat]:[];
+  const re=new RegExp("^"+pat.replace(/\?/g,"[A-Z]")+"$");
+  const out=[];
+  for(const r of results) if(r.len===pat.length&&re.test(r.w)) out.push(r.w);
+  return out.sort();
+}
+function wordList(ws){
+  const show=ws.slice(0,5).join(" · ");
+  return ws.length>5?show+" +"+(ws.length-5):show;
 }
 function markFound(w){
   const el=document.getElementById("results").querySelector(`a.w[data-w="${w}"]`);
@@ -430,7 +456,7 @@ function setStatus(cls,txt){
 /* tiles + counters only — never judges the word */
 function renderTiles(){
   wlTiles.innerHTML = line.length
-    ? line.map((i,k)=>`<div class="tile sm" data-k="${k}" title="put it back">${rack[i]}<span class="v">${VAL[rack[i]]}</span></div>`).join("")
+    ? line.map((i,k)=>`<div class="tile sm${rack[i]==="?"?" blank":""}" data-k="${k}" title="put it back">${tileFace(rack[i])}</div>`).join("")
     : `<div class="wl-empty">tap a letter above to start building a word</div>`;
   document.getElementById("btnSubmit").disabled=line.length<2;
   document.getElementById("wlFound").textContent=found.size;
@@ -444,14 +470,23 @@ function renderLine(){
 }
 function submitWord(){
   if(busy) return;
-  const w=lineWord(); if(w.length<2) return;
-  const r=resultMap.get(w);
-  if(!r){ animate("bad"); setStatus("bad",w+" — not in the list"); return; }
-  if(found.has(w)){ animate("dup"); setStatus("dup",w+" — already found"); return; }
-  found.add(w); markFound(w);
+  const pat=lineWord(); if(pat.length<2) return;
+  const all=lineMatches();
+  if(!all.length){ animate("bad"); setStatus("bad",pat+" — not in the list"); return; }
+  const fresh=all.filter(w=>!found.has(w));
+  if(!fresh.length){
+    animate("dup");
+    setStatus("dup",(all.length>1?all.length+" words":all[0])+" — already found");
+    return;
+  }
+  const sc=lineScore(), bingo=line.length===rack.length&&rack.length>=7;
+  for(const w of fresh){ found.add(w); markFound(w); }
   document.getElementById("wlFound").textContent=found.size;
   animate("ok");
-  setStatus("ok",w+" — "+scoreOf(r)+(r.len===rack.length&&rack.length===7?" · bingo!":""));
+  setStatus("ok",(fresh.length===1
+      ? fresh[0]+" — "+sc
+      : fresh.length+" words — "+wordList(fresh)+" — "+sc+" each")
+    +(bingo?" · bingo!":""));
   busy=true;
   setTimeout(()=>{
     busy=false; line=[];
@@ -468,7 +503,7 @@ wlTiles.addEventListener("click",e=>{
 
 /* ---------- results ---------- */
 function chip(r){
-  const full=r.len===rack.length, bingo=full&&rack.length===7;
+  const full=r.len===rack.length, bingo=full&&rack.length>=7;
   const cls="w"+(bingo?" bingo":full?" full":"")+(r.wild?" wild":"")+(found.has(r.w)?" found":"");
   const sc=bingo?(r.score+50):r.score;
   const mark=r.twl?"":`<span class="c" title="Collins only — not valid in North American (TWL) play">ᶜ</span>`;
@@ -515,7 +550,7 @@ function renderStats(list){
   const longs=list.filter(r=>r.len===long);
   document.getElementById("stLong").innerHTML=long?`${longs[0].w} <small>${longs.length>1?"+"+(longs.length-1)+" more":""}</small>`:"—";
   let best=null;
-  for(const r of list){const s=r.score+((r.len===rack.length&&rack.length===7)?50:0); if(!best||s>best.s) best={w:r.w,s};}
+  for(const r of list){const s=r.score+((r.len===rack.length&&rack.length>=7)?50:0); if(!best||s>best.s) best={w:r.w,s};}
   document.getElementById("stBest").innerHTML=best?`${best.w} <small>${best.s}</small>`:"—";
   document.getElementById("stRack").textContent=rack.reduce((s,t)=>s+(t==="?"?0:VAL[t]),0);
 }
@@ -524,6 +559,7 @@ function run(noAnim){
   results=solve(rack);
   resultMap=new Map();
   for(const r of results) resultMap.set(r.w,r);
+  for(const w of [...found]) if(!resultMap.has(w)) found.delete(w);
   renderRack(noAnim);
   renderResults();
   renderLine();
@@ -540,6 +576,14 @@ $("btnShuffle").onclick=()=>{
 $("btnSubmit").onclick=submitWord;
 $("btnClear").onclick=()=>{ line=[]; renderRack(true); renderLine(); };
 $("btnPlus").onclick=()=>{ if(rack.length<12) newRack(rack.length+1); };
+$("btnBlank").onclick=()=>{
+  if(blankCount()>=MAXBLANK||rack.length>=12) return;
+  rack=[...rack,"?"]; run();          // keeps the letters you already have
+};
+$("btnUnblank").onclick=()=>{
+  const i=rack.lastIndexOf("?"); if(i<0) return;
+  rack.splice(i,1); run();
+};
 $("btnMinus").onclick=()=>{ if(rack.length>2) newRack(rack.length-1); };
 $("btnEdit").onclick=()=>{
   const row=$("editRow"); row.classList.toggle("on");
@@ -547,7 +591,8 @@ $("btnEdit").onclick=()=>{
 };
 $("btnCancel").onclick=()=>$("editRow").classList.remove("on");
 function applyInput(){
-  const raw=$("rackInput").value.toUpperCase().replace(/[^A-Z]/g,"").slice(0,12);
+  let raw=$("rackInput").value.toUpperCase().replace(/[^A-Z?]/g,"").slice(0,12);
+  let nb=0; raw=[...raw].filter(c=>c!=="?"||++nb<=MAXBLANK).join("");
   if(raw.length<2) return;
   rack=raw.split(""); found.clear(); $("editRow").classList.remove("on"); run();
 }
