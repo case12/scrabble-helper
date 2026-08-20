@@ -50,7 +50,7 @@
   .tile.ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:99;
     box-shadow:0 14px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);cursor:grabbing}
   @keyframes drop{from{opacity:0;transform:translateY(-16px) rotate(-6deg)}to{opacity:1;transform:none}}
-  .hint{text-align:center;color:var(--dim2);font-size:11.5px;margin-top:12px}
+  .hint{text-align:center;color:var(--dim2);font-size:12.5px;margin-top:12px}
 
   /* ---- word line ---- */
   .tile.slot{background:none;box-shadow:none;border:2px dashed #2b3d46;cursor:default}
@@ -69,8 +69,11 @@
     60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
   @keyframes duppulse{0%,100%{opacity:1}50%{opacity:.45}}
   .wl-empty{color:var(--dim2);font-size:12.5px}
-  .wl-bar{display:flex;align-items:flex-start;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:14px}
-  .wl-submit{display:flex;flex-direction:column;align-items:center;gap:9px}
+  .wl-bar{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:center;
+    column-gap:14px;row-gap:9px;margin-top:14px}
+  #btnClear{grid-area:1/1}
+  #btnSubmit{grid-area:1/2}
+  .wl-count{grid-area:2/2;text-align:center}
   #btnSubmit{padding:13px 32px;font-size:16px;border-radius:12px}
   .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);
     min-height:18px;text-align:center;margin-top:12px}
@@ -85,9 +88,17 @@
   .controls.soft{margin-top:14px}
   .newgame{margin-bottom:12px}
   .newgame .controls{margin-top:0}
+  /* one line, always: --cf is dialled down by fitControls until it fits */
+  #newGame .controls{--cf:14.5px;flex-wrap:nowrap;gap:8px}
+  #newGame .controls>button{font-size:var(--cf);padding:.62em 1em;white-space:nowrap}
+  #newGame .stepper{padding:.22em .3em;gap:.25em}
+  #newGame .stepper button{font-size:var(--cf);padding:.4em .75em}
+  #newGame .stepper .n{min-width:0;white-space:nowrap;padding:0 .3em;font-size:calc(var(--cf)*.9)}
+  #newGame .stepper .n b{font-size:calc(var(--cf)*.96)}
   button,.stepper{
     background:#213038;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
-    padding:9px 14px;font-size:13.5px;font-weight:550;cursor:pointer;transition:.15s;
+    padding:9px 14px;font-size:13.5px;font-weight:550;cursor:pointer;
+    transition:background .15s,border-color .15s,color .15s;
     display:inline-flex;align-items:center;gap:8px;font-family:inherit;
   }
   button:hover{background:#2a3d47;border-color:#3d5763}
@@ -103,10 +114,11 @@
   .stepper .n b{color:var(--ink);font-size:14px}
   kbd{font:500 11px var(--mono);background:#0d1417;border:1px solid #2f4550;border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--dim)}
 
-  #editRow{display:none;margin-top:14px;justify-content:center;gap:8px}
+  #editRow{display:none;margin-top:14px;justify-content:center;gap:8px;flex-wrap:wrap}
   #editRow.on{display:flex}
   #rackInput{background:#0d1417;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
-    padding:9px 12px;font:600 16px var(--mono);letter-spacing:.16em;text-transform:uppercase;width:230px}
+    padding:9px 12px;font:600 16px var(--mono);letter-spacing:.16em;text-transform:uppercase;
+    width:230px;max-width:100%}
   #rackInput:focus{outline:none;border-color:var(--accent)}
 
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 6px}
@@ -182,7 +194,7 @@
   body.compact #btnSubmit{padding:8px 22px;font-size:13.5px}
   body.compact .wordline{margin-top:8px;padding-top:8px}
   body.compact .wl-bar{margin-top:8px}
-  body.compact .wl-submit{gap:6px}
+  body.compact .wl-bar{row-gap:6px}
   body.compact .newgame{margin-bottom:7px}
   body.compact .wl-status{margin-top:5px;min-height:16px}
 
@@ -204,13 +216,13 @@
 
   <div class="panel newgame" id="newGame">
     <div class="controls">
-      <button class="primary" id="btnNew">New Letters <kbd>space</kbd></button>
+      <button class="primary" id="btnNew" data-full="New Letters" data-short="New" title="New Letters">New Letters</button>
       <div class="stepper">
         <button id="btnMinus" title="Fewer tiles">−</button>
-        <span class="n"><b id="tileN">7</b> tiles</span>
+        <span class="n"><b id="tileN">7</b> <span class="unit">tiles</span></span>
         <button id="btnPlus" title="More tiles">+</button>
       </div>
-      <button class="ghost" id="btnEdit">Type my rack</button>
+      <button class="ghost" id="btnEdit" data-full="Type my rack" data-short="Type" title="Type my rack">Type my rack</button>
     </div>
     <div id="editRow">
       <input type="text" id="rackInput" maxlength="12" spellcheck="false" placeholder="e.g. RETINA?">
@@ -223,19 +235,17 @@
     <div class="rack" id="rack"></div>
     <div class="hint">drag to rearrange</div>
     <div class="controls soft">
-      <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
       <button class="ghost" id="btnBlank">Add blank</button>
       <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
+      <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
     </div>
 
     <div class="wordline">
       <div class="wl-tiles" id="wlTiles"></div>
       <div class="wl-bar">
         <button class="ghost" id="btnClear">Clear</button>
-        <div class="wl-submit">
-          <button class="primary" id="btnSubmit">Submit</button>
-          <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
-        </div>
+        <button class="primary" id="btnSubmit">Submit</button>
+        <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
       </div>
       <div class="wl-status" id="wlStatus"></div>
     </div>
@@ -388,6 +398,23 @@ function applyFit(max){
   fitRow(rackEl,rack.length,max);
   fitRow(wlTiles,line.length,Math.max(16,Math.round(max*.82)));
 }
+const CF=[14.5,13.5,12.5,11.5,10.5];
+const ngControls=document.querySelector("#newGame .controls");
+const unitEl=document.querySelector("#newGame .stepper .unit");
+const shortable=[...ngControls.querySelectorAll("button[data-short]")];
+/* keep the New Letters row on one line without shrinking it past readable:
+   drop type size first, then the word "tiles", then fall back to short labels */
+function fitControls(){
+  for(const [short,unit] of [[false,true],[false,false],[true,false]]){
+    for(const b of shortable) b.textContent=short?b.dataset.short:b.dataset.full;
+    unitEl.hidden=!unit;
+    for(const f of CF){
+      ngControls.style.setProperty("--cf",f+"px");
+      if(ngControls.scrollWidth<=ngControls.clientWidth+1) return;
+    }
+  }
+}
+
 /* largest size that fits, searched over SIZES; null if even the smallest overflows */
 function largestThatFits(){
   let lo=0, hi=SIZES.length-1, hit=null;
@@ -407,6 +434,7 @@ function fitPage(){
     document.body.classList.toggle("compact",fitCompact);
     applyFit(fitMax); return;
   }
+  fitControls();
   document.body.classList.remove("compact");
   let compact=false, best=largestThatFits();
   if(best===null){
@@ -548,6 +576,7 @@ function renderTiles(){
     : `<div class="wl-empty">tap a letter above to start building a word</div>`;
   fitPage();
   document.getElementById("btnSubmit").disabled=line.length<2;
+  document.getElementById("btnClear").disabled=line.length===0;
   document.getElementById("wlFound").textContent=found.size;
   document.getElementById("wlTotal").textContent=results.length;
 }
