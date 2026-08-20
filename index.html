@@ -69,7 +69,8 @@
     60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
   @keyframes duppulse{0%,100%{opacity:1}50%{opacity:.45}}
   .wl-empty{color:var(--dim2);font-size:12.5px}
-  .wl-bar{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .wl-bar{display:flex;align-items:flex-start;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .wl-submit{display:flex;flex-direction:column;align-items:center;gap:9px}
   #btnSubmit{padding:13px 32px;font-size:16px;border-radius:12px}
   .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);
     min-height:18px;text-align:center;margin-top:12px}
@@ -81,6 +82,9 @@
   @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
 
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+  .controls.soft{margin-top:14px}
+  .newgame{margin-bottom:12px}
+  .newgame .controls{margin-top:0}
   button,.stepper{
     background:#213038;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
     padding:9px 14px;font-size:13.5px;font-weight:550;cursor:pointer;transition:.15s;
@@ -102,7 +106,7 @@
   #editRow{display:none;margin-top:14px;justify-content:center;gap:8px}
   #editRow.on{display:flex}
   #rackInput{background:#0d1417;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
-    padding:9px 12px;font:600 15px var(--mono);letter-spacing:.16em;text-transform:uppercase;width:230px}
+    padding:9px 12px;font:600 16px var(--mono);letter-spacing:.16em;text-transform:uppercase;width:230px}
   #rackInput:focus{outline:none;border-color:var(--accent)}
 
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 6px}
@@ -111,10 +115,11 @@
   .seg button.on{background:#2f4a54;color:var(--ink)}
   .seg button:hover{color:var(--ink);background:#26383f}
   .seg button.on:hover{background:#2f4a54}
+  /* 16px is the threshold below which iOS Safari zooms the page on focus */
   input[type=text],select{background:#0d1417;border:1px solid #2f4550;color:var(--ink);border-radius:10px;
-    padding:8px 12px;font-size:13px;font-family:inherit}
+    padding:7px 11px;font-size:16px;font-family:inherit}
   input[type=text]:focus,select:focus{outline:none;border-color:var(--accent)}
-  #filter{width:170px}
+  #filter{width:180px}
   .spacer{flex:1}
   .legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--dim2);font-size:12px;margin:8px 0 16px}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:middle}
@@ -159,25 +164,27 @@
     #btnSubmit{padding:15px 34px;font-size:16.5px}
     .wordline{margin-top:14px;padding-top:13px}
     .controls{margin-top:16px}
+    .newgame{margin-bottom:10px}
   }
 
-  /* short viewports (landscape phones): trade chrome for the fold */
-  @media(max-height:560px){
-    .wrap{padding:10px 14px 40px}
-    header{margin-bottom:8px}
-    h1{font-size:17px}
-    .sub{display:none}
-    .panel{padding:12px 14px}
-    .hint{display:none}
-    .controls{margin-top:10px;gap:7px}
-    button{padding:7px 12px;font-size:13px}
-    .stepper{padding:3px 5px}
-    .stepper button{padding:4px 10px}
-    #btnSubmit{padding:9px 24px;font-size:14px}
-    .wordline{margin-top:10px;padding-top:9px}
-    .wl-bar{margin-top:9px}
-    .wl-status{margin-top:7px}
-  }
+  /* applied by fitPage when shrinking tiles alone can't clear the fold */
+  body.compact .wrap{padding:8px 12px 40px}
+  body.compact header{margin-bottom:6px}
+  body.compact h1{font-size:17px}
+  body.compact .sub{display:none}
+  body.compact .panel{padding:9px 12px}
+  body.compact .hint{display:none}
+  body.compact .controls{margin-top:8px;gap:6px}
+  body.compact .newgame .controls{margin-top:0}
+  body.compact button{padding:6px 11px;font-size:12.5px}
+  body.compact .stepper{padding:3px 5px}
+  body.compact .stepper button{padding:4px 10px}
+  body.compact #btnSubmit{padding:8px 22px;font-size:13.5px}
+  body.compact .wordline{margin-top:8px;padding-top:8px}
+  body.compact .wl-bar{margin-top:8px}
+  body.compact .wl-submit{gap:6px}
+  body.compact .newgame{margin-bottom:7px}
+  body.compact .wl-status{margin-top:5px;min-height:16px}
 
   #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
     flex-direction:column;gap:14px;z-index:200;color:var(--dim)}
@@ -195,29 +202,14 @@
     <div class="sub">Every word hiding in your rack</div>
   </header>
 
-  <div class="panel">
-    <div class="rack" id="rack"></div>
-    <div class="hint">drag to rearrange</div>
-
-    <div class="wordline">
-      <div class="wl-tiles" id="wlTiles"></div>
-      <div class="wl-bar">
-        <button class="primary" id="btnSubmit">Submit</button>
-        <button class="ghost" id="btnClear">Clear</button>
-        <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
-      </div>
-      <div class="wl-status" id="wlStatus"></div>
-    </div>
+  <div class="panel newgame" id="newGame">
     <div class="controls">
       <button class="primary" id="btnNew">New Letters <kbd>space</kbd></button>
-      <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
       <div class="stepper">
         <button id="btnMinus" title="Fewer tiles">−</button>
         <span class="n"><b id="tileN">7</b> tiles</span>
         <button id="btnPlus" title="More tiles">+</button>
       </div>
-      <button class="ghost" id="btnBlank">Add blank</button>
-      <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
       <button class="ghost" id="btnEdit">Type my rack</button>
     </div>
     <div id="editRow">
@@ -226,6 +218,29 @@
       <button class="ghost" id="btnCancel">Cancel</button>
     </div>
   </div>
+
+  <div class="panel">
+    <div class="rack" id="rack"></div>
+    <div class="hint">drag to rearrange</div>
+    <div class="controls soft">
+      <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
+      <button class="ghost" id="btnBlank">Add blank</button>
+      <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
+    </div>
+
+    <div class="wordline">
+      <div class="wl-tiles" id="wlTiles"></div>
+      <div class="wl-bar">
+        <button class="ghost" id="btnClear">Clear</button>
+        <div class="wl-submit">
+          <button class="primary" id="btnSubmit">Submit</button>
+          <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
+        </div>
+      </div>
+      <div class="wl-status" id="wlStatus"></div>
+    </div>
+  </div>
+
 
   <div class="toolbar">
     <div class="seg" id="sortSeg">
@@ -365,26 +380,42 @@ function solve(tiles){
 
 /* ---------- rack rendering + drag ---------- */
 const rackEl=document.getElementById("rack");
-const panelEl=document.querySelector(".panel");
+const panels=[...document.querySelectorAll(".panel")];
+const panelsBottom=()=>Math.max(...panels.map(p=>p.getBoundingClientRect().bottom));
 const SIZES=[64,56,48,42,36,31,27,24,21];
-let fitKey="", fitMax=64;
+let fitKey="", fitMax=64, fitCompact=false;
 function applyFit(max){
   fitRow(rackEl,rack.length,max);
   fitRow(wlTiles,line.length,Math.max(16,Math.round(max*.82)));
 }
-/* largest tile size where the panel still ends above the fold */
-function fitPage(){
-  if(!innerHeight||!rackEl.clientWidth) return;
-  const key=rack.length+"|"+line.length+"|"+innerWidth+"x"+innerHeight;
-  if(key===fitKey){ applyFit(fitMax); return; }
-  let lo=0, hi=SIZES.length-1, best=SIZES[hi];
+/* largest size that fits, searched over SIZES; null if even the smallest overflows */
+function largestThatFits(){
+  let lo=0, hi=SIZES.length-1, hit=null;
   while(lo<=hi){
     const mid=(lo+hi)>>1;
     applyFit(SIZES[mid]);
-    if(panelEl.getBoundingClientRect().bottom<=innerHeight-10){ best=SIZES[mid]; hi=mid-1; }
+    if(panelsBottom()<=innerHeight-10){ hit=SIZES[mid]; hi=mid-1; }
     else lo=mid+1;
   }
-  applyFit(best); fitKey=key; fitMax=best;
+  return hit;
+}
+/* keep everything above the fold: shrink the tiles, then compress the chrome */
+function fitPage(){
+  if(!innerHeight||!rackEl.clientWidth) return;
+  const key=rack.length+"|"+line.length+"|"+innerWidth+"x"+innerHeight;
+  if(key===fitKey){
+    document.body.classList.toggle("compact",fitCompact);
+    applyFit(fitMax); return;
+  }
+  document.body.classList.remove("compact");
+  let compact=false, best=largestThatFits();
+  if(best===null){
+    document.body.classList.add("compact");
+    compact=true;
+    best=largestThatFits() ?? SIZES[SIZES.length-1];
+  }
+  applyFit(best);
+  fitKey=key; fitMax=best; fitCompact=compact;
 }
 
 /* pick the largest tile size that still lets n tiles share one row */
@@ -634,13 +665,14 @@ $("btnMinus").onclick=()=>{ if(rack.length>2) newRack(rack.length-1); };
 $("btnEdit").onclick=()=>{
   const row=$("editRow"); row.classList.toggle("on");
   if(row.classList.contains("on")){ const i=$("rackInput"); i.value=rack.join(""); i.focus(); i.select(); }
+  refit();
 };
-$("btnCancel").onclick=()=>$("editRow").classList.remove("on");
+$("btnCancel").onclick=()=>{ $("editRow").classList.remove("on"); refit(); };
 function applyInput(){
   let raw=$("rackInput").value.toUpperCase().replace(/[^A-Z?]/g,"").slice(0,12);
   let nb=0; raw=[...raw].filter(c=>c!=="?"||++nb<=MAXBLANK).join("");
   if(raw.length<2) return;
-  rack=raw.split(""); found.clear(); $("editRow").classList.remove("on"); run();
+  rack=raw.split(""); found.clear(); $("editRow").classList.remove("on"); refit(); run();
 }
 $("btnApply").onclick=applyInput;
 $("rackInput").addEventListener("keydown",e=>{ if(e.key==="Enter") applyInput(); });
