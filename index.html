@@ -109,11 +109,11 @@
   .wl-result{display:flex;gap:14px;align-items:center;height:38px;margin-top:10px;
     justify-content:center;justify-content:safe center;overflow-x:auto;overflow-y:hidden}
   .rgroup{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto}
-  .rchip{display:inline-flex;align-items:center;gap:8px;background:#1c2a31;
-    border:1px solid #26363e;border-radius:9px;padding:8px 12px;text-decoration:none;
-    font:600 13px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
+  .rchip{display:inline-flex;align-items:center;gap:9px;background:#1c2a31;
+    border:1px solid #26363e;border-radius:9px;height:34px;padding:0 14px;text-decoration:none;
+    font:600 15px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
   .rchip:hover{border-color:var(--accent);color:var(--accent)}
-  .rchip .rs{font-size:11px;color:var(--dim2);font-weight:600}
+  .rchip .rs{font-size:12px;color:var(--dim2);font-weight:600}
   .tg{width:34px;height:34px;padding:0;flex:0 0 auto;border-radius:9px;
     display:inline-flex;align-items:center;justify-content:center;
     font:700 17px/1 var(--mono);background:transparent;border:1px solid var(--bad);color:var(--bad)}
@@ -265,14 +265,14 @@
   body.compact .stepper button{padding:4px 10px}
   body.compact #btnSubmit{padding:8px 22px;font-size:13.5px}
   body.compact .rackzone{margin-top:8px;padding-top:8px}
-  body.compact .wl-bar{margin-top:8px}
+  body.compact .wl-bar{margin-top:7px}
   body.compact .wl-bar{row-gap:6px}
   body.compact .newgame{margin-bottom:7px}
-  body.compact .wl-status{margin-top:5px;height:16px;font:600 12px/16px var(--mono)}
-  body.compact .wl-result{margin-top:6px;height:31px}
-  body.compact .wordline{height:calc(var(--twmax)*1.1 + 58px)}
+  body.compact .wl-status{margin-top:4px;height:16px;font:600 12px/16px var(--mono)}
+  body.compact .wl-result{margin-top:4px;height:30px}
+  body.compact .wordline{height:calc(var(--twmax)*1.1 + 54px)}
   body.compact .wl-tiles{height:calc(var(--twmax)*1.1)}
-  body.compact .rchip{padding:6px 10px;font-size:12px}
+  body.compact .rchip{height:29px;padding:0 11px;font-size:13.5px}
   body.compact .tg{width:29px;height:29px;font-size:15px}
 
   #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
@@ -856,15 +856,40 @@ $("btnShuffle").onclick=()=>{
   line=[]; renderRack(); renderLine();
 };
 const resultsBox=$("results");
-resultsBox.addEventListener("click",e=>{
-  const a=e.target.closest("a.w"); if(!a||!modifyMode) return;
-  /* a plain tap edits the list; cmd/ctrl/middle-click still follow the link */
+/* Modify mode has to serve two gestures on one element. The host frame installs its
+   own capture listener on window that navigates any a[href] before our handlers see
+   the click, so preventDefault cannot stop it -- the only reliable move is to make
+   sure the element carries no href by the time a tap's click is dispatched.
+   A long press never produces a click, so the href survives and the browser's own
+   preview still works. */
+const TAPMS=500;
+let tapChip=null, tapTimer=0;
+function endTap(){ clearTimeout(tapTimer); tapChip=null; }
+resultsBox.addEventListener("pointerdown",e=>{
+  if(!modifyMode) return;
+  const a=e.target.closest("a.w"); if(!a) return;
   if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button!==0) return;
-  e.preventDefault();
-  const w=a.dataset.w;
+  tapChip={a,x:e.clientX,y:e.clientY,held:false};
+  clearTimeout(tapTimer);
+  tapTimer=setTimeout(()=>{ if(tapChip) tapChip.held=true; },TAPMS);
+});
+resultsBox.addEventListener("pointermove",e=>{
+  if(tapChip&&Math.abs(e.clientX-tapChip.x)+Math.abs(e.clientY-tapChip.y)>8) endTap();
+});
+window.addEventListener("pointercancel",endTap);
+window.addEventListener("pointerup",e=>{
+  if(!tapChip) return;
+  const {a,held}=tapChip; endTap();
+  if(held) return;                       // held long enough: leave the link to the browser
+  const href=a.getAttribute("href");
+  a.removeAttribute("href");             // must happen before the click is dispatched
+  toggleListWord(a.dataset.w);
+  if(href) setTimeout(()=>{ if(a.isConnected) a.setAttribute("href",href); },0);
+});
+function toggleListWord(w){
   if(removed.has(w)) removed.delete(w); else removed.add(w);
   saveRemoved(); renderRemoved(); recompute();
-},true);
+}
 $("btnModify").onclick=()=>{
   modifyMode=!modifyMode;
   $("btnModify").classList.toggle("on",modifyMode);
