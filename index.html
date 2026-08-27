@@ -69,8 +69,8 @@
   .tile.sm{cursor:pointer}
   .tile.sm:hover{transform:translateY(-2px)}
   .rackzone{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-  .wl-tiles{--tw:52px;--tg:8px;display:flex;gap:var(--tg);flex-wrap:nowrap;justify-content:center;
-    align-items:center;min-height:calc(var(--tw)*1.15)}
+  .wl-tiles{--tw:52px;--tg:8px;--twmax:52px;display:flex;gap:var(--tg);flex-wrap:nowrap;
+    justify-content:center;align-items:center;height:calc(var(--twmax)*1.18)}
   .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
     box-shadow:0 0 0 3px var(--accent),0 var(--lift) 0 #b99f74,0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45)}
   .wl-tiles.bad .tile{animation:badshake .42s ease;
@@ -87,27 +87,29 @@
   #btnSubmit{grid-area:1/2}
   .wl-count{grid-area:2/2;text-align:center}
   #btnSubmit{padding:13px 32px;font-size:16px;border-radius:12px}
-  .wl-status{font:600 13px/1.4 var(--mono);letter-spacing:.05em;color:var(--dim2);
-    min-height:18px;text-align:center;margin-top:12px}
+  .wl-status{font:600 13px/18px var(--mono);letter-spacing:.05em;color:var(--dim2);
+    height:18px;text-align:center;margin-top:10px;white-space:nowrap;overflow:hidden}
   .wl-status.ok{color:var(--accent)}
   .wl-status.dup{color:var(--dim)}
   .wl-status.bad{color:var(--bad)}
   .wl-count{font:500 12px var(--mono);color:var(--dim2)}
-  .wl-result{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:11px}
-  .wl-result:empty{display:none}
-  .rchip{display:inline-flex;align-items:center;gap:7px;background:#1c2a31;
-    border:1px solid #26363e;border-radius:8px;padding:5px 5px 5px 10px;
-    font:600 13px/1 var(--mono);letter-spacing:.05em}
-  .rchip a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--dim2)}
-  .rchip a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  /* fixed height, and many chips scroll sideways rather than growing the page */
+  .wl-result{display:flex;gap:14px;align-items:center;height:38px;margin-top:10px;
+    justify-content:center;justify-content:safe center;overflow-x:auto;overflow-y:hidden}
+  .rgroup{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto}
+  .rchip{display:inline-flex;align-items:center;gap:8px;background:#1c2a31;
+    border:1px solid #26363e;border-radius:9px;padding:8px 12px;text-decoration:none;
+    font:600 13px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
+  .rchip:hover{border-color:var(--accent);color:var(--accent)}
   .rchip .rs{font-size:11px;color:var(--dim2);font-weight:600}
-  .rchip .tg{padding:2px 7px;background:transparent;border:none;color:var(--bad);
-    font:700 15px/1 var(--mono)}
-  .rchip .tg:hover{background:rgba(226,121,106,.14);color:var(--bad)}
-  .rchip.gone{border-style:dashed;background:#161f24}
-  .rchip.gone a{color:var(--dim2)}
-  .rchip.gone .tg{color:var(--accent)}
-  .rchip.gone .tg:hover{background:rgba(95,208,166,.14);color:var(--accent)}
+  .tg{width:34px;height:34px;padding:0;flex:0 0 auto;border-radius:9px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font:700 17px/1 var(--mono);background:transparent;border:1px solid var(--bad);color:var(--bad)}
+  .tg:hover{background:rgba(226,121,106,.14);border-color:var(--bad);color:var(--bad)}
+  .rgroup.gone .rchip{border-style:dashed;color:var(--dim2)}
+  .rgroup.gone .rchip:hover{color:var(--accent);border-color:var(--accent)}
+  .rgroup.gone .tg{border-color:var(--accent);color:var(--accent)}
+  .rgroup.gone .tg:hover{background:rgba(95,208,166,.14);color:var(--accent)}
   .wl-count b{color:var(--accent);font-weight:650}
   @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
 
@@ -250,7 +252,11 @@
   body.compact .wl-bar{margin-top:8px}
   body.compact .wl-bar{row-gap:6px}
   body.compact .newgame{margin-bottom:7px}
-  body.compact .wl-status{margin-top:5px;min-height:16px}
+  body.compact .wl-status{margin-top:5px;height:16px;font:600 12px/16px var(--mono)}
+  body.compact .wl-result{margin-top:6px;height:31px}
+  body.compact .wl-tiles{height:calc(var(--twmax)*1.1)}
+  body.compact .rchip{padding:6px 10px;font-size:12px}
+  body.compact .tg{width:29px;height:29px;font-size:15px}
 
   #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
     flex-direction:column;gap:14px;z-index:200;color:var(--dim)}
@@ -467,7 +473,8 @@ function solve(tiles){
 /* ---------- rack rendering + drag ---------- */
 const rackEl=document.getElementById("rack");
 const panels=[...document.querySelectorAll(".panel")];
-const panelsBottom=()=>Math.max(...panels.map(p=>p.getBoundingClientRect().bottom));
+/* document-relative, so a refit while scrolled still asks "does this fit from the top?" */
+const panelsBottom=()=>Math.max(...panels.map(p=>p.getBoundingClientRect().bottom))+window.scrollY;
 const SIZES=[64,56,48,42,36,31,27,24,21];
 let fitKey="", fitMax=64, fitCompact=false;
 function applyFit(max){
@@ -524,6 +531,7 @@ function fitPage(){
 
 /* pick the largest tile size that still lets n tiles share one row */
 function fitRow(el,n,max){
+  el.style.setProperty("--twmax",max+"px");
   if(!n){ el.style.setProperty("--tw",max+"px"); el.style.setProperty("--tg","10px"); return; }
   const avail=el.clientWidth;
   if(!avail) return;
@@ -632,9 +640,8 @@ function setResult(ws){
   lastWords=ws||[];
   wlResult.innerHTML=lastWords.map(w=>{
     const gone=removed.has(w), r=allMap.get(w);
-    return `<span class="rchip${gone?" gone":""}">`+
-      `<a href="${SRC[srcMode](w)}" target="_blank" rel="noopener noreferrer" title="Look up ${w}">${w}</a>`+
-      `<span class="rs">${r?r.score:0}</span>`+
+    return `<span class="rgroup${gone?" gone":""}">`+
+      `<a class="rchip" href="${SRC[srcMode](w)}" target="_blank" rel="noopener noreferrer" title="Look up ${w}">${w}<span class="rs">${r?r.score:0}</span></a>`+
       `<button class="tg" data-w="${w}" title="${gone?"Put "+w+" back in the word list":"Remove "+w+" from the word list"}">${gone?"+":"\u00d7"}</button>`+
       `</span>`;
   }).join("");
@@ -683,14 +690,14 @@ function submitWord(){
   /* it is a real word, you just took it off your own list — offer it back */
   if(!ok.length){
     animate("bad");
-    setStatus("bad",(all.length>1?all.length+" words":all[0])+" — you removed "+(all.length>1?"these":"this"));
+    setStatus("bad",all.length>1?all.length+" words — you removed these":"you removed this");
     setResult(all);
     return;
   }
   const fresh=ok.filter(w=>!found.has(w));
   if(!fresh.length){
     animate("dup");
-    setStatus("dup",(ok.length>1?ok.length+" words":ok[0])+" — already found");
+    setStatus("dup",(ok.length>1?ok.length+" words — ":"")+"already found");
     setResult(ok);
     return;
   }
@@ -698,8 +705,9 @@ function submitWord(){
   for(const w of fresh){ found.add(w); markFound(w); }
   document.getElementById("wlFound").textContent=found.size;
   animate("ok");
-  setStatus("ok",(fresh.length===1?fresh[0]+" — "+sc:fresh.length+" words — "+sc+" each")
-    +(bingo?" · bingo!":""));
+  setStatus("ok",fresh.length>1
+    ? fresh.length+" words"+(bingo?" · bingo! +50":"")
+    : (bingo?"bingo! +50":""));
   setResult(ok);
   busy=true;
   setTimeout(()=>{
@@ -713,7 +721,7 @@ wlResult.addEventListener("click",e=>{
   const w=b.dataset.w, gone=removed.has(w);
   if(gone) removed.delete(w); else removed.add(w);
   saveRemoved(); renderRemoved(); recompute();
-  setStatus(gone?"ok":"dup", w+(gone?" — put back" : " — removed from your list"));
+  setStatus(gone?"ok":"dup", gone?"put back":"removed from your list");
   setResult(lastWords);
 });
 wlTiles.addEventListener("click",e=>{
