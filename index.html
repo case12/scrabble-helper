@@ -23,8 +23,7 @@
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
   /* the first screenful: header, the new-rack controls and the board.
      Everything below it is the word list, reached by scrolling. */
-  .screen{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
-    justify-content:center;padding:28px 0}
+  .screen{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:28px 0}
   header{display:flex;align-items:center;justify-content:space-between;gap:14px;
     margin-bottom:22px;position:relative}
   .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-width:0}
@@ -132,7 +131,7 @@
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
   .controls.soft{margin-top:0;--cf:14.5px;flex-wrap:nowrap;gap:8px}
   .controls.soft>button{font-size:var(--cf);padding:.62em 1em;white-space:nowrap}
-  .newgame{margin-bottom:12px}
+  .newgame{margin-top:auto;margin-bottom:12px}
   .newgame .controls{margin-top:0}
   /* one line, always: --cf is dialled down by fitControls until it fits */
   #newGame .controls{--cf:14.5px;flex-wrap:nowrap;gap:8px}
@@ -498,13 +497,11 @@ function solve(tiles){
 
 /* ---------- rack rendering + drag ---------- */
 const rackEl=document.getElementById("rack");
-const panels=[...document.querySelectorAll(".panel")];
 const screenEl=document.querySelector(".screen");
-/* the section keeps its own padding below the last panel; leave room for it
-   so the screenful lands on exactly one viewport rather than spilling over */
-const foldSlack=()=>10+(parseFloat(getComputedStyle(screenEl).paddingBottom)||0);
-/* document-relative, so a refit while scrolled still asks "does this fit from the top?" */
-const panelsBottom=()=>Math.max(...panels.map(p=>p.getBoundingClientRect().bottom))+window.scrollY;
+/* The board is bottom-aligned now, so where it sits says nothing about whether it
+   fits. Ask the section instead: its min-height is one viewport, so it only grows
+   past that when the content genuinely does not fit. Scroll-independent too. */
+const screenTooTall=()=>screenEl.getBoundingClientRect().height>innerHeight+1;
 const SIZES=[64,56,48,42,36,31,27,24,21];
 let fitKey="", fitMax=64, fitCompact=false;
 function applyFit(max){
@@ -537,12 +534,11 @@ function fitControls(){
 
 /* largest size that fits, searched over SIZES; null if even the smallest overflows */
 function largestThatFits(){
-  const slack=foldSlack();
   let lo=0, hi=SIZES.length-1, hit=null;
   while(lo<=hi){
     const mid=(lo+hi)>>1;
     applyFit(SIZES[mid]);
-    if(panelsBottom()<=innerHeight-slack){ hit=SIZES[mid]; hi=mid-1; }
+    if(!screenTooTall()){ hit=SIZES[mid]; hi=mid-1; }
     else lo=mid+1;
   }
   return hit;
