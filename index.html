@@ -372,7 +372,7 @@
 
   <div class="modbar">
     <button class="ghost" id="btnModify">Modify word list</button>
-    <span class="modhint" id="modHint" hidden>tap a word to remove it or put it back</span>
+    <span class="modhint" id="modHint" hidden>tap a word to remove it or put it back &middot; press and hold to look it up</span>
   </div>
 
   <footer>
@@ -779,7 +779,7 @@ function chip(r){
     /* no href: a tap edits the list instead of opening a dictionary */
 
     const face=`${r.w}${mark}<span class="s">${sc}${bingo?"★":""}<span class="mk">${gone?"+":"\u00d7"}</span></span>`;
-    return `<a class="${cls}${gone?" gone":""} mod" data-w="${r.w}" title="${gone?"Put "+r.w+" back":"Remove "+r.w}">${face}</a>`;
+    return `<a class="${cls}${gone?" gone":""} mod" data-w="${r.w}" href="${SRC[srcMode](r.w)}" target="_blank" rel="noopener noreferrer" title="${gone?"Put "+r.w+" back":"Remove "+r.w}">${face}</a>`;
   }
   return `<a class="${cls}" data-w="${r.w}" href="${SRC[srcMode](r.w)}" target="_blank" rel="noopener noreferrer" title="Look up ${r.w}">${body}</a>`;
 }
@@ -858,11 +858,13 @@ $("btnShuffle").onclick=()=>{
 const resultsBox=$("results");
 resultsBox.addEventListener("click",e=>{
   const a=e.target.closest("a.w"); if(!a||!modifyMode) return;
+  /* a plain tap edits the list; cmd/ctrl/middle-click still follow the link */
+  if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button!==0) return;
   e.preventDefault();
   const w=a.dataset.w;
   if(removed.has(w)) removed.delete(w); else removed.add(w);
   saveRemoved(); renderRemoved(); recompute();
-});
+},true);
 $("btnModify").onclick=()=>{
   modifyMode=!modifyMode;
   $("btnModify").classList.toggle("on",modifyMode);
