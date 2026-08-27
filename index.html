@@ -181,6 +181,8 @@
     font-size:15px;line-height:1}
   .rmchip button:hover{color:var(--accent);background:transparent}
   #removedRow[hidden]{display:none}
+  #btnRestoreAll.danger{border-color:var(--bad);color:var(--bad)}
+  #btnRestoreAll.danger:hover{background:rgba(226,121,106,.12);border-color:var(--bad);color:var(--bad)}
   .subhead{display:flex;align-items:center;gap:12px;margin:14px 0 9px}
   .subhead span:first-child{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--bad)}
   .subhead .rule{flex:1;height:1px;background:var(--line)}
@@ -779,6 +781,7 @@ function renderRemoved(){
   const ws=[...removed].sort();
   $("removedRow").hidden=ws.length===0;
   $("removedN").textContent=ws.length;
+  resetRestore();
   $("removedList").innerHTML=ws.map(w=>
     `<span class="rmchip">${w}<button data-w="${w}" aria-label="Restore ${w}" title="Restore ${w}">\u00d7</button></span>`).join("");
 }
@@ -786,12 +789,31 @@ $("removedList").onclick=e=>{
   const b=e.target.closest("button"); if(!b) return;
   removed.delete(b.dataset.w); saveRemoved(); renderRemoved(); recompute();
 };
+/* wiping the list undoes a lot of deliberate work, so make it two taps */
+let confirmingRestore=false, restoreTimer=0;
+function resetRestore(){
+  confirmingRestore=false;
+  clearTimeout(restoreTimer);
+  const b=$("btnRestoreAll");
+  b.classList.remove("danger");
+  b.textContent="Restore all";
+}
 $("btnRestoreAll").onclick=()=>{
+  const b=$("btnRestoreAll");
+  if(!confirmingRestore){
+    confirmingRestore=true;
+    b.classList.add("danger");
+    b.textContent=`Confirm: restore ${removed.size}`;
+    restoreTimer=setTimeout(resetRestore,5000);
+    return;
+  }
+  resetRestore();
   removed.clear(); saveRemoved(); renderRemoved(); recompute();
 };
 
 const sheet=$("settings"), gear=$("btnSettings");
 function setSettings(open){
+  if(!open) resetRestore();
   sheet.hidden=!open;
   gear.setAttribute("aria-expanded",open?"true":"false");
 }
