@@ -71,11 +71,18 @@
   .rackzone{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
   /* fixed overall height; when there's nothing to report the tile row takes the
      whole block, so the placeholder reads as centred instead of pinned to the top */
-  .wordline{--twmax:52px;display:flex;flex-direction:column;
+  /* fixed height; whatever the block is actually showing gets centred in it --
+     the placeholder alone, or the message and chips once the tiles have gone */
+  .wordline{--twmax:52px;display:flex;flex-direction:column;justify-content:center;
     height:calc(var(--twmax)*1.18 + 76px)}
-  .wordline.bare .wl-status,.wordline.bare .wl-result{height:0;margin-top:0;overflow:hidden}
-  .wl-tiles{--tw:52px;--tg:8px;flex:1 1 auto;display:flex;gap:var(--tg);flex-wrap:nowrap;
-    justify-content:center;align-items:center}
+  .wordline.no-tiles .wl-tiles{height:0;overflow:hidden}
+  .wordline.no-status .wl-status{height:0;margin-top:0;overflow:hidden}
+  .wordline.no-result .wl-result{height:0;margin-top:0;overflow:hidden}
+  /* whatever ends up first has no row above it to be spaced from */
+  .wordline.no-tiles .wl-status{margin-top:0}
+  .wordline.no-tiles.no-status .wl-result{margin-top:0}
+  .wl-tiles{--tw:52px;--tg:8px;flex:0 0 auto;height:calc(var(--twmax)*1.18);
+    display:flex;gap:var(--tg);flex-wrap:nowrap;justify-content:center;align-items:center}
   .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
     box-shadow:0 0 0 3px var(--accent),0 var(--lift) 0 #b99f74,0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45)}
   .wl-tiles.bad .tile{animation:badshake .42s ease;
@@ -211,13 +218,16 @@
   .subhead .rule{flex:1;height:1px;background:var(--line)}
   .subhead .cnt{font:500 12px var(--mono);color:var(--dim2)}
   a.w.mod{cursor:pointer}
-  a.w .mk{font:700 13px/1 var(--mono);margin-left:1px}
-  a.w.mod .mk{color:var(--bad)}
   a.w.gone{background:#161f24;border-color:#26363e;color:var(--dim2);opacity:.85}
   a.w.gone::before{content:none}
-  a.w.gone .s,a.w.gone .c{color:var(--dim2)}
-  a.w.gone .mk{color:var(--accent)}
+  a.w.gone .c{color:var(--dim2)}
   a.w.gone:hover{border-color:var(--accent);background:#1b272d;color:var(--ink)}
+  /* the mark sits over the score, hidden but still occupying its box, so entering
+     modify mode changes no chip's width and nothing reflows */
+  a.w.mod .s{position:relative;color:transparent}
+  a.w.mod .mk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font:700 14px/1 var(--mono);color:var(--bad)}
+  a.w.gone .mk{color:var(--accent)}
   .modbar{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:28px 0 4px}
   #btnModify.on{background:var(--accent);border-color:var(--accent);color:#08201a;font-weight:700}
   .modhint{color:var(--dim2);font-size:12.5px}
@@ -261,6 +271,7 @@
   body.compact .wl-status{margin-top:5px;height:16px;font:600 12px/16px var(--mono)}
   body.compact .wl-result{margin-top:6px;height:31px}
   body.compact .wordline{height:calc(var(--twmax)*1.1 + 58px)}
+  body.compact .wl-tiles{height:calc(var(--twmax)*1.1)}
   body.compact .rchip{padding:6px 10px;font-size:12px}
   body.compact .tg{width:29px;height:29px;font-size:15px}
 
@@ -672,9 +683,13 @@ function animate(cls){
   wlTiles.classList.add(cls);
 }
 function lineWord(){ return line.map(i=>rack[i]).join(""); }
+/* collapse whichever of the three rows is empty; justify-content centres the rest */
 function syncBare(){
-  wordlineEl.classList.toggle("bare",
-    !document.getElementById("wlStatus").textContent && !lastWords.length);
+  const hasStatus=!!document.getElementById("wlStatus").textContent;
+  const hasChips=lastWords.length>0;
+  wordlineEl.classList.toggle("no-status",!hasStatus);
+  wordlineEl.classList.toggle("no-result",!hasChips);
+  wordlineEl.classList.toggle("no-tiles",!line.length&&(hasStatus||hasChips));
 }
 function setStatus(cls,txt){
   const st=document.getElementById("wlStatus");
@@ -689,6 +704,7 @@ function renderTiles(){
     : `<div class="wl-empty">tap a letter below to start building a word</div>`;
   fitPage();
   document.getElementById("btnSubmit").disabled=line.length<2;
+  syncBare();
   document.getElementById("btnClear").disabled=line.length===0;
   document.getElementById("wlFound").textContent=found.size;
   document.getElementById("wlTotal").textContent=results.length;
@@ -741,7 +757,7 @@ wlResult.addEventListener("click",e=>{
   const w=b.dataset.w, gone=removed.has(w);
   if(gone) removed.delete(w); else removed.add(w);
   saveRemoved(); renderRemoved(); recompute();
-  setStatus(gone?"ok":"dup", gone?"put back":"removed from your list");
+  setStatus(gone?"ok":"bad", gone?"put back":"removed from your list");
   setResult(lastWords);
 });
 wlTiles.addEventListener("click",e=>{
@@ -761,7 +777,9 @@ function chip(r){
   if(modifyMode){
     const gone=removed.has(r.w);
     /* no href: a tap edits the list instead of opening a dictionary */
-    return `<a class="${cls}${gone?" gone":""} mod" data-w="${r.w}" title="${gone?"Put "+r.w+" back":"Remove "+r.w}">${body}<span class="mk">${gone?"+":"\u00d7"}</span></a>`;
+
+    const face=`${r.w}${mark}<span class="s">${sc}${bingo?"★":""}<span class="mk">${gone?"+":"\u00d7"}</span></span>`;
+    return `<a class="${cls}${gone?" gone":""} mod" data-w="${r.w}" title="${gone?"Put "+r.w+" back":"Remove "+r.w}">${face}</a>`;
   }
   return `<a class="${cls}" data-w="${r.w}" href="${SRC[srcMode](r.w)}" target="_blank" rel="noopener noreferrer" title="Look up ${r.w}">${body}</a>`;
 }
