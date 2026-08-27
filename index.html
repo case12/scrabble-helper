@@ -62,13 +62,13 @@
   .tile.ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:99;
     box-shadow:0 14px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);cursor:grabbing}
   @keyframes drop{from{opacity:0;transform:translateY(-16px) rotate(-6deg)}to{opacity:1;transform:none}}
-  .hint{text-align:center;color:var(--dim2);font-size:12.5px;margin-top:12px}
+  .hint{text-align:center;color:var(--dim2);font-size:12.5px;margin:12px 0}
 
   /* ---- word line ---- */
   .tile.slot{background:none;box-shadow:none;border:2px dashed #2b3d46;cursor:default}
   .tile.sm{cursor:pointer}
   .tile.sm:hover{transform:translateY(-2px)}
-  .wordline{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .rackzone{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
   .wl-tiles{--tw:52px;--tg:8px;display:flex;gap:var(--tg);flex-wrap:nowrap;justify-content:center;
     align-items:center;min-height:calc(var(--tw)*1.15)}
   .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
@@ -93,11 +93,26 @@
   .wl-status.dup{color:var(--dim)}
   .wl-status.bad{color:var(--bad)}
   .wl-count{font:500 12px var(--mono);color:var(--dim2)}
+  .wl-result{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:11px}
+  .wl-result:empty{display:none}
+  .rchip{display:inline-flex;align-items:center;gap:7px;background:#1c2a31;
+    border:1px solid #26363e;border-radius:8px;padding:5px 5px 5px 10px;
+    font:600 13px/1 var(--mono);letter-spacing:.05em}
+  .rchip a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--dim2)}
+  .rchip a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  .rchip .rs{font-size:11px;color:var(--dim2);font-weight:600}
+  .rchip .tg{padding:2px 7px;background:transparent;border:none;color:var(--bad);
+    font:700 15px/1 var(--mono)}
+  .rchip .tg:hover{background:rgba(226,121,106,.14);color:var(--bad)}
+  .rchip.gone{border-style:dashed;background:#161f24}
+  .rchip.gone a{color:var(--dim2)}
+  .rchip.gone .tg{color:var(--accent)}
+  .rchip.gone .tg:hover{background:rgba(95,208,166,.14);color:var(--accent)}
   .wl-count b{color:var(--accent);font-weight:650}
   @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
 
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
-  .controls.soft{margin-top:14px}
+  .controls.soft{margin-top:0}
   .newgame{margin-bottom:12px}
   .newgame .controls{margin-top:0}
   /* one line, always: --cf is dialled down by fitControls until it fits */
@@ -213,7 +228,7 @@
     .stepper button{padding:10px 14px}
     #btnSubmit{padding:15px 34px;font-size:16.5px}
     #btnSettings{padding:11px}
-    .wordline{margin-top:14px;padding-top:13px}
+    .rackzone{margin-top:14px;padding-top:13px}
     .controls{margin-top:16px}
     .newgame{margin-bottom:10px}
   }
@@ -231,7 +246,7 @@
   body.compact .stepper{padding:3px 5px}
   body.compact .stepper button{padding:4px 10px}
   body.compact #btnSubmit{padding:8px 22px;font-size:13.5px}
-  body.compact .wordline{margin-top:8px;padding-top:8px}
+  body.compact .rackzone{margin-top:8px;padding-top:8px}
   body.compact .wl-bar{margin-top:8px}
   body.compact .wl-bar{row-gap:6px}
   body.compact .newgame{margin-bottom:7px}
@@ -297,14 +312,6 @@
   </div>
 
   <div class="panel">
-    <div class="rack" id="rack"></div>
-    <div class="hint">drag to rearrange</div>
-    <div class="controls soft">
-      <button class="ghost" id="btnBlank">Add blank</button>
-      <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
-      <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
-    </div>
-
     <div class="wordline">
       <div class="wl-tiles" id="wlTiles"></div>
       <div class="wl-bar">
@@ -313,6 +320,17 @@
         <span class="wl-count"><b id="wlFound">0</b> / <span id="wlTotal">0</span> found</span>
       </div>
       <div class="wl-status" id="wlStatus"></div>
+      <div class="wl-result" id="wlResult"></div>
+    </div>
+
+    <div class="rackzone">
+      <div class="controls soft">
+        <button class="ghost" id="btnBlank">Add blank</button>
+        <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
+        <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
+      </div>
+      <div class="hint">drag to rearrange</div>
+      <div class="rack" id="rack"></div>
     </div>
   </div>
 
@@ -357,7 +375,7 @@ const SRC={
 
 let DICT=null, TWL=null, DICTCOUNT=0, TWLCOUNT=0;
 let rack=[], listMode="col", srcMode="mw", filter="", results=[], expanded={};
-let line=[], found=new Set(), resultMap=new Map(), allResults=[], modifyMode=false;
+let line=[], found=new Set(), resultMap=new Map(), allResults=[], allMap=new Map(), modifyMode=false;
 const RKEY="rackattack.removed";
 let removed=new Set();
 try{ const raw=localStorage.getItem(RKEY); if(raw) removed=new Set(JSON.parse(raw)); }catch(e){}
@@ -587,6 +605,7 @@ function remap(i,from,to){
 
 /* ---------- word line ---------- */
 const wlTiles=document.getElementById("wlTiles");
+const wlResult=document.getElementById("wlResult");
 function playTile(i){
   const k=line.indexOf(i);
   if(k>=0) line.splice(k,1); else line.push(i);
@@ -601,15 +620,24 @@ function lineScore(){
 /* every valid word the played tiles can spell; blanks stand in for any letter */
 function lineMatches(){
   const pat=lineWord();
-  if(!pat.includes("?")) return resultMap.has(pat)?[pat]:[];
+  if(!pat.includes("?")) return allMap.has(pat)?[pat]:[];
   const re=new RegExp("^"+pat.replace(/\?/g,"[A-Z]")+"$");
   const out=[];
-  for(const r of results) if(r.len===pat.length&&re.test(r.w)) out.push(r.w);
+  for(const r of allResults) if(r.len===pat.length&&re.test(r.w)) out.push(r.w);
   return out.sort();
 }
-function wordList(ws){
-  const show=ws.slice(0,5).join(" · ");
-  return ws.length>5?show+" +"+(ws.length-5):show;
+/* the submitted word survives the tiles clearing: definition link + list toggle */
+let lastWords=[];
+function setResult(ws){
+  lastWords=ws||[];
+  wlResult.innerHTML=lastWords.map(w=>{
+    const gone=removed.has(w), r=allMap.get(w);
+    return `<span class="rchip${gone?" gone":""}">`+
+      `<a href="${SRC[srcMode](w)}" target="_blank" rel="noopener noreferrer" title="Look up ${w}">${w}</a>`+
+      `<span class="rs">${r?r.score:0}</span>`+
+      `<button class="tg" data-w="${w}" title="${gone?"Put "+w+" back in the word list":"Remove "+w+" from the word list"}">${gone?"+":"\u00d7"}</button>`+
+      `</span>`;
+  }).join("");
 }
 function markFound(w){
   const el=document.getElementById("results").querySelector(`a.w[data-w="${w}"]`);
@@ -631,7 +659,7 @@ function setStatus(cls,txt){
 function renderTiles(){
   wlTiles.innerHTML = line.length
     ? line.map((i,k)=>`<div class="tile sm${rack[i]==="?"?" blank":""}" data-k="${k}" title="put it back">${tileFace(rack[i])}</div>`).join("")
-    : `<div class="wl-empty">tap a letter above to start building a word</div>`;
+    : `<div class="wl-empty">tap a letter below to start building a word</div>`;
   fitPage();
   document.getElementById("btnSubmit").disabled=line.length<2;
   document.getElementById("btnClear").disabled=line.length===0;
@@ -642,26 +670,37 @@ function renderLine(){
   wlTiles.classList.remove("ok","bad","dup");
   renderTiles();
   setStatus("","");
+  setResult([]);
 }
 function submitWord(){
   if(busy) return;
   const pat=lineWord(); if(pat.length<2) return;
   const all=lineMatches();
-  if(!all.length){ animate("bad"); setStatus("bad",pat+" — not in the list"); return; }
-  const fresh=all.filter(w=>!found.has(w));
+  if(!all.length){
+    animate("bad"); setStatus("bad",pat+" — not a word"); setResult([]); return;
+  }
+  const ok=all.filter(w=>!removed.has(w));
+  /* it is a real word, you just took it off your own list — offer it back */
+  if(!ok.length){
+    animate("bad");
+    setStatus("bad",(all.length>1?all.length+" words":all[0])+" — you removed "+(all.length>1?"these":"this"));
+    setResult(all);
+    return;
+  }
+  const fresh=ok.filter(w=>!found.has(w));
   if(!fresh.length){
     animate("dup");
-    setStatus("dup",(all.length>1?all.length+" words":all[0])+" — already found");
+    setStatus("dup",(ok.length>1?ok.length+" words":ok[0])+" — already found");
+    setResult(ok);
     return;
   }
   const sc=lineScore(), bingo=line.length===rack.length&&rack.length>=7;
   for(const w of fresh){ found.add(w); markFound(w); }
   document.getElementById("wlFound").textContent=found.size;
   animate("ok");
-  setStatus("ok",(fresh.length===1
-      ? fresh[0]+" — "+sc
-      : fresh.length+" words — "+wordList(fresh)+" — "+sc+" each")
+  setStatus("ok",(fresh.length===1?fresh[0]+" — "+sc:fresh.length+" words — "+sc+" each")
     +(bingo?" · bingo!":""));
+  setResult(ok);
   busy=true;
   setTimeout(()=>{
     busy=false; line=[];
@@ -669,6 +708,14 @@ function submitWord(){
     renderRack(true); renderTiles();   // keeps the score on screen
   },420);
 }
+wlResult.addEventListener("click",e=>{
+  const b=e.target.closest("button.tg"); if(!b) return;
+  const w=b.dataset.w, gone=removed.has(w);
+  if(gone) removed.delete(w); else removed.add(w);
+  saveRemoved(); renderRemoved(); recompute();
+  setStatus(gone?"ok":"dup", w+(gone?" — put back" : " — removed from your list"));
+  setResult(lastWords);
+});
 wlTiles.addEventListener("click",e=>{
   if(busy) return;
   const t=e.target.closest(".tile"); if(!t) return;
@@ -738,6 +785,8 @@ function renderResults(){
 /* re-solve without disturbing whatever is on the word line */
 function recompute(){
   allResults=solve(rack);
+  allMap=new Map();
+  for(const r of allResults) allMap.set(r.w,r);
   results=allResults.filter(r=>!removed.has(r.w));
   resultMap=new Map();
   for(const r of results) resultMap.set(r.w,r);
