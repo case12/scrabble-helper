@@ -69,8 +69,13 @@
   .tile.sm{cursor:pointer}
   .tile.sm:hover{transform:translateY(-2px)}
   .rackzone{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-  .wl-tiles{--tw:52px;--tg:8px;--twmax:52px;display:flex;gap:var(--tg);flex-wrap:nowrap;
-    justify-content:center;align-items:center;height:calc(var(--twmax)*1.18)}
+  /* fixed overall height; when there's nothing to report the tile row takes the
+     whole block, so the placeholder reads as centred instead of pinned to the top */
+  .wordline{--twmax:52px;display:flex;flex-direction:column;
+    height:calc(var(--twmax)*1.18 + 76px)}
+  .wordline.bare .wl-status,.wordline.bare .wl-result{height:0;margin-top:0;overflow:hidden}
+  .wl-tiles{--tw:52px;--tg:8px;flex:1 1 auto;display:flex;gap:var(--tg);flex-wrap:nowrap;
+    justify-content:center;align-items:center}
   .wl-tiles.ok .tile{animation:okpop .36s cubic-bezier(.2,1.5,.4,1);
     box-shadow:0 0 0 3px var(--accent),0 var(--lift) 0 #b99f74,0 calc(var(--tw)*.156) calc(var(--tw)*.28) rgba(0,0,0,.45)}
   .wl-tiles.bad .tile{animation:badshake .42s ease;
@@ -114,7 +119,8 @@
   @media(prefers-reduced-motion:reduce){.wl-tiles .tile{animation:none}.tile.anim{animation:none}}
 
   .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
-  .controls.soft{margin-top:0}
+  .controls.soft{margin-top:0;--cf:14.5px;flex-wrap:nowrap;gap:8px}
+  .controls.soft>button{font-size:var(--cf);padding:.62em 1em;white-space:nowrap}
   .newgame{margin-bottom:12px}
   .newgame .controls{margin-top:0}
   /* one line, always: --cf is dialled down by fitControls until it fits */
@@ -254,7 +260,7 @@
   body.compact .newgame{margin-bottom:7px}
   body.compact .wl-status{margin-top:5px;height:16px;font:600 12px/16px var(--mono)}
   body.compact .wl-result{margin-top:6px;height:31px}
-  body.compact .wl-tiles{height:calc(var(--twmax)*1.1)}
+  body.compact .wordline{height:calc(var(--twmax)*1.1 + 58px)}
   body.compact .rchip{padding:6px 10px;font-size:12px}
   body.compact .tg{width:29px;height:29px;font-size:15px}
 
@@ -326,9 +332,9 @@
 
     <div class="rackzone">
       <div class="controls soft">
-        <button class="ghost" id="btnBlank">Add blank</button>
-        <button class="ghost" id="btnUnblank" hidden>Remove blank</button>
-        <button id="btnShuffle">⇄ Shuffle <kbd>s</kbd></button>
+        <button class="ghost" id="btnBlank" data-full="Add blank" data-short="+ blank" title="Add blank">Add blank</button>
+        <button class="ghost" id="btnUnblank" hidden data-full="Remove blank" data-short="&minus; blank" title="Remove blank">Remove blank</button>
+        <button id="btnShuffle" data-full="⇄ Shuffle" data-short="⇄">⇄ Shuffle</button>
       </div>
       <div class="hint">drag to rearrange</div>
       <div class="rack" id="rack"></div>
@@ -479,23 +485,30 @@ const SIZES=[64,56,48,42,36,31,27,24,21];
 let fitKey="", fitMax=64, fitCompact=false;
 function applyFit(max){
   fitRow(rackEl,rack.length,max);
-  fitRow(wlTiles,line.length,Math.max(16,Math.round(max*.82)));
+  const m=Math.max(16,Math.round(max*.82));
+  fitRow(wlTiles,line.length,m);
+  wordlineEl.style.setProperty("--twmax",m+"px");
 }
 const CF=[14.5,13.5,12.5,11.5,10.5];
 const ngControls=document.querySelector("#newGame .controls");
 const unitEl=document.querySelector("#newGame .stepper .unit");
-const shortable=[...ngControls.querySelectorAll("button[data-short]")];
+const softControls=document.querySelector(".controls.soft");
 /* keep the New Letters row on one line without shrinking it past readable:
    drop type size first, then the word "tiles", then fall back to short labels */
-function fitControls(){
-  for(const [short,unit] of [[false,true],[false,false],[true,false]]){
+function fitOneRow(el,unit){
+  const shortable=[...el.querySelectorAll("button[data-short]")];
+  for(const [short,showUnit] of [[false,true],[false,false],[true,false]]){
     for(const b of shortable) b.textContent=short?b.dataset.short:b.dataset.full;
-    unitEl.hidden=!unit;
+    if(unit) unit.hidden=!showUnit;
     for(const f of CF){
-      ngControls.style.setProperty("--cf",f+"px");
-      if(ngControls.scrollWidth<=ngControls.clientWidth+1) return;
+      el.style.setProperty("--cf",f+"px");
+      if(el.scrollWidth<=el.clientWidth+1) return;
     }
   }
+}
+function fitControls(){
+  fitOneRow(ngControls,unitEl);
+  fitOneRow(softControls,null);
 }
 
 /* largest size that fits, searched over SIZES; null if even the smallest overflows */
@@ -512,12 +525,12 @@ function largestThatFits(){
 /* keep everything above the fold: shrink the tiles, then compress the chrome */
 function fitPage(){
   if(!innerHeight||!rackEl.clientWidth) return;
+  fitControls();
   const key=rack.length+"|"+line.length+"|"+innerWidth+"x"+innerHeight;
   if(key===fitKey){
     document.body.classList.toggle("compact",fitCompact);
     applyFit(fitMax); return;
   }
-  fitControls();
   document.body.classList.remove("compact");
   let compact=false, best=largestThatFits();
   if(best===null){
@@ -550,10 +563,10 @@ function renderRack(noAnim){
     const st=noAnim?"":` style="animation-delay:${i*45}ms"`;
     return `<div class="${cls}" data-i="${i}"${st}>${tileFace(t)}</div>`;
   }).join("");
-  fitPage();
   document.getElementById("tileN").textContent=rack.length;
   document.getElementById("btnBlank").disabled=blankCount()>=MAXBLANK||rack.length>=12;
   document.getElementById("btnUnblank").hidden=blankCount()===0;
+  fitPage();
 }
 let drag=null;
 const TAPSLOP=6;
@@ -613,6 +626,7 @@ function remap(i,from,to){
 
 /* ---------- word line ---------- */
 const wlTiles=document.getElementById("wlTiles");
+const wordlineEl=document.querySelector(".wordline");
 const wlResult=document.getElementById("wlResult");
 function playTile(i){
   const k=line.indexOf(i);
@@ -645,6 +659,7 @@ function setResult(ws){
       `<button class="tg" data-w="${w}" title="${gone?"Put "+w+" back in the word list":"Remove "+w+" from the word list"}">${gone?"+":"\u00d7"}</button>`+
       `</span>`;
   }).join("");
+  syncBare();
 }
 function markFound(w){
   const el=document.getElementById("results").querySelector(`a.w[data-w="${w}"]`);
@@ -657,10 +672,15 @@ function animate(cls){
   wlTiles.classList.add(cls);
 }
 function lineWord(){ return line.map(i=>rack[i]).join(""); }
+function syncBare(){
+  wordlineEl.classList.toggle("bare",
+    !document.getElementById("wlStatus").textContent && !lastWords.length);
+}
 function setStatus(cls,txt){
   const st=document.getElementById("wlStatus");
   st.className="wl-status"+(cls?" "+cls:"");
   st.textContent=txt;
+  syncBare();
 }
 /* tiles + counters only — never judges the word */
 function renderTiles(){
