@@ -180,8 +180,6 @@
   .wordmenu[hidden]{display:none}
   .wm-word{font:650 15px/1 var(--mono);letter-spacing:.06em}
   .wm-word small{color:var(--dim2);font-weight:500;font-size:11px;margin-left:7px}
-  .wm-look{color:var(--accent);font-size:12px;text-decoration:none}
-  .wm-look:hover{text-decoration:underline}
   .wm-remove{background:transparent;border-color:var(--bad);color:var(--bad);
     font-size:13px;justify-content:center}
   .wm-remove:hover{background:rgba(226,121,106,.12);border-color:var(--bad);color:var(--bad)}
@@ -324,7 +322,6 @@
 
   <div class="wordmenu" id="wordMenu" hidden>
     <div class="wm-word" id="wmWord"></div>
-    <a class="wm-look" id="wmLook" target="_blank" rel="noopener noreferrer">look it up first</a>
     <button class="wm-remove" id="wmRemove">Not a word &mdash; remove</button>
   </div>
 
@@ -734,13 +731,23 @@ $("btnShuffle").onclick=()=>{
 };
 /* ---------- long press to disown a word ---------- */
 const resultsBox=$("results"), wordMenu=$("wordMenu");
-let lp=null, lpFired=false, wmWord="";
+let lp=null, lpFired=false, wmWord="", armedChip=null;
 function cancelLP(){ if(lp){ clearTimeout(lp.t); lp=null; } }
+function disarmChip(){
+  if(armedChip){
+    if(armedChip.isConnected&&armedChip.dataset.href) armedChip.setAttribute("href",armedChip.dataset.href);
+    armedChip=null;
+  }
+}
 function openWordMenu(a){
   const w=a.dataset.w, r=resultMap.get(w); if(!r) return;
   wmWord=w;
   $("wmWord").innerHTML=`${w} <small>${r.score}</small>`;
-  $("wmLook").href=SRC[srcMode](w);
+  /* strip the href while the popup is up: no href, no navigation on lift */
+  disarmChip();
+  a.dataset.href=a.getAttribute("href")||"";
+  a.removeAttribute("href");
+  armedChip=a;
   wordMenu.hidden=false;
   const b=a.getBoundingClientRect(), m=wordMenu.getBoundingClientRect();
   let x=b.left, y=b.bottom+6;
@@ -749,7 +756,7 @@ function openWordMenu(a){
   wordMenu.style.left=Math.max(8,x)+"px";
   wordMenu.style.top=Math.max(8,y)+"px";
 }
-function closeWordMenu(){ wordMenu.hidden=true; wmWord=""; }
+function closeWordMenu(){ disarmChip(); wordMenu.hidden=true; wmWord=""; lpFired=false; }
 resultsBox.addEventListener("pointerdown",e=>{
   const a=e.target.closest("a.w"); if(!a) return;
   lpFired=false;
@@ -761,11 +768,12 @@ resultsBox.addEventListener("pointermove",e=>{
 window.addEventListener("pointerup",cancelLP);
 window.addEventListener("pointercancel",cancelLP);
 window.addEventListener("scroll",cancelLP,{passive:true});
-/* a long press must not also follow the definition link */
+/* looking a word up is a plain tap; a long press must never navigate */
 resultsBox.addEventListener("click",e=>{
-  if(!lpFired) return;
+  if(!e.target.closest("a.w")) return;
+  if(!lpFired && wordMenu.hidden) return;
   e.preventDefault(); e.stopPropagation(); lpFired=false;
-});
+},true);
 resultsBox.addEventListener("contextmenu",e=>{
   const a=e.target.closest("a.w"); if(!a) return;
   e.preventDefault(); cancelLP(); openWordMenu(a);
@@ -773,6 +781,7 @@ resultsBox.addEventListener("contextmenu",e=>{
 $("wmRemove").onclick=()=>{
   if(!wmWord) return;
   removed.add(wmWord); saveRemoved();
+  armedChip=null;              // chip is about to be re-rendered away
   closeWordMenu(); renderRemoved(); recompute();
 };
 
