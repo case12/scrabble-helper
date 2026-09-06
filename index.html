@@ -478,6 +478,36 @@ let removed=new Set();
 try{ const raw=localStorage.getItem(RKEY); if(raw) removed=new Set(JSON.parse(raw)); }catch(e){}
 function saveRemoved(){ try{ localStorage.setItem(RKEY,JSON.stringify([...removed])); }catch(e){} }
 
+/* Where you left off: the rack, what you have found on it, the tiles still on the
+   word line, and the two settings. New Letters and friends simply overwrite it. */
+const SKEY="rackattack.session";
+let saveTimer=0;
+function saveSession(){
+  try{
+    localStorage.setItem(SKEY,JSON.stringify(
+      {v:1,rack,line,found:[...found],listMode,srcMode}));
+  }catch(e){}
+}
+function queueSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveSession,250); }
+/* anything in storage is untrusted: an older shape, a half-write, or hand-edited */
+function loadSession(){
+  let o;
+  try{ const raw=localStorage.getItem(SKEY); if(!raw) return null; o=JSON.parse(raw); }
+  catch(e){ return null; }
+  if(!o||typeof o!=="object") return null;
+  const r=o.rack;
+  if(!Array.isArray(r)||r.length<2||r.length>12) return null;
+  if(!r.every(t=>typeof t==="string"&&/^[A-Z?]$/.test(t))) return null;
+  if(r.filter(t=>t==="?").length>MAXBLANK) return null;
+  const line=Array.isArray(o.line)
+    ? [...new Set(o.line.filter(i=>Number.isInteger(i)&&i>=0&&i<r.length))] : [];
+  const found=Array.isArray(o.found)
+    ? o.found.filter(w=>typeof w==="string"&&/^[A-Z]{2,15}$/.test(w)) : [];
+  return {rack:r,line,found,
+    listMode:o.listMode==="twl"?"twl":"col",
+    srcMode:Object.hasOwn(SRC,o.srcMode)?o.srcMode:"mw"};
+}
+
 const REP=[];
 for(let i=0;i<26;i++){const r=[""],c=String.fromCharCode(A+i);for(let n=1;n<=15;n++)r.push(r[n-1]+c);REP.push(r);}
 
@@ -654,6 +684,7 @@ function renderRack(noAnim){
   document.getElementById("btnBlank").disabled=blankCount()>=MAXBLANK||rack.length>=12;
   document.getElementById("btnUnblank").hidden=blankCount()===0;
   fitPage();
+  queueSave();
 }
 let drag=null;
 const TAPSLOP=6;
@@ -781,6 +812,7 @@ function renderTiles(){
   fitPage();
   document.getElementById("btnSubmit").disabled=line.length<2;
   syncBare();
+  queueSave();
   document.getElementById("btnClear").disabled=line.length===0;
   document.getElementById("wlFound").textContent=found.size;
   document.getElementById("wlTotal").textContent=results.length;
@@ -816,6 +848,7 @@ function submitWord(){
   const sc=lineScore(), bingo=line.length===rack.length&&rack.length>=7;
   for(const w of fresh){ found.add(w); markFound(w); }
   document.getElementById("wlFound").textContent=found.size;
+  queueSave();
   animate("ok");
   setStatus("ok",fresh.length>1
     ? fresh.length+" words"+(bingo?" · bingo! +50":"")
@@ -916,6 +949,7 @@ function recompute(){
   renderResults();
   renderTiles();
   renderCoach();
+  queueSave();
 }
 
 /* ---------- coach ---------- */
@@ -1096,9 +1130,9 @@ $("listSeg").onclick=e=>{
   const b=e.target.closest("button"); if(!b) return;
   listMode=b.dataset.l;
   [...e.currentTarget.children].forEach(c=>c.classList.toggle("on",c===b));
-  expanded={}; renderResults();
+  expanded={}; renderResults(); renderCoach(); queueSave();
 };
-$("src").addEventListener("change",e=>{ srcMode=e.target.value; renderResults(); });
+$("src").addEventListener("change",e=>{ srcMode=e.target.value; renderResults(); queueSave(); });
 $("filter").addEventListener("input",e=>{
   filter=e.target.value.toUpperCase().replace(/[^A-Z]/g,"");
   expanded={}; renderResults();
@@ -1121,7 +1155,17 @@ loadDict().then(()=>{
   $("twlN").textContent=TWLCOUNT.toLocaleString();
   $("loading").remove();
   renderRemoved();
-  newRack(7);
+  const sess=loadSession();
+  if(sess){
+    listMode=sess.listMode; srcMode=sess.srcMode;
+    [...$("listSeg").children].forEach(c=>c.classList.toggle("on",c.dataset.l===listMode));
+    $("src").value=srcMode;
+    rack=sess.rack;
+    found.clear(); for(const w of sess.found) found.add(w);
+    run(true);                       // solves and prunes found to what this rack can make
+    line=sess.line;                  // run() clears the line, so restore it after
+    renderRack(true); renderLine();
+  } else newRack(7);
 }).catch(err=>{
   $("loading").innerHTML="<div style='max-width:440px;text-align:center;padding:20px'>"+err.message+"</div>";
 });
