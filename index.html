@@ -180,6 +180,17 @@
   .afx{display:inline-flex;align-items:center;gap:6px;background:#1c2a31;border:1px solid #26363e;
     border-radius:8px;padding:5px 9px;font:600 12.5px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
   .afx i{font-style:normal;color:var(--dim2);font-size:11px}
+  .pop-back{position:fixed;inset:0;z-index:90;background:rgba(4,10,12,.6);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  .pop-back[hidden]{display:none}
+  .pop{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;
+    width:100%;max-width:330px;box-shadow:0 24px 60px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;gap:16px}
+  .pop-q{font-size:14.5px;line-height:1.5;color:var(--dim)}
+  .pop-q b{color:var(--ink);font:650 15px var(--mono);letter-spacing:.06em}
+  .pop-actions{display:flex;gap:10px;justify-content:flex-end}
+  #popOk{background:transparent;border-color:var(--bad);color:var(--bad)}
+  #popOk:hover{background:rgba(226,121,106,.14);border-color:var(--bad);color:var(--bad)}
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 6px}
   .seg{display:inline-flex;background:#1a262c;border:1px solid var(--line);border-radius:10px;padding:3px}
   .seg button{background:transparent;border:none;padding:6px 13px;border-radius:8px;color:var(--dim);font-size:13px}
@@ -384,6 +395,16 @@
     <div class="clabel">Coach</div>
     <div class="clines" id="coachLines"></div>
     <div class="affixes" id="affixRow"></div>
+  </div>
+
+  <div class="pop-back" id="popBack" hidden>
+    <div class="pop">
+      <div class="pop-q">Remove <b id="popWord"></b> from your word list?</div>
+      <div class="pop-actions">
+        <button class="ghost" id="popCancel">Keep</button>
+        <button id="popOk">Remove</button>
+      </div>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -864,10 +885,14 @@ function submitWord(){
 wlResult.addEventListener("click",e=>{
   const b=e.target.closest("button.tg"); if(!b) return;
   const w=b.dataset.w, gone=removed.has(w);
-  if(gone) removed.delete(w); else removed.add(w);
-  saveRemoved(); renderRemoved(); recompute();
-  setStatus(gone?"ok":"bad", gone?"put back":"removed from your list");
-  setResult(lastWords);
+  const apply=()=>{
+    if(gone) removed.delete(w); else removed.add(w);
+    saveRemoved(); renderRemoved(); recompute();
+    setStatus(gone?"ok":"bad", gone?"put back":"removed from your list");
+    setResult(lastWords);
+  };
+  /* putting one back costs nothing, and curating in modify mode should not nag */
+  if(gone||modifyMode) apply(); else askRemove(w,apply);
 });
 wlTiles.addEventListener("click",e=>{
   if(busy) return;
@@ -1019,30 +1044,60 @@ const resultsBox=$("results");
    sure the element carries no href by the time a tap's click is dispatched.
    A long press never produces a click, so the href survives and the browser's own
    preview still works. */
-const TAPMS=500;
-let tapChip=null, tapTimer=0;
+const TAPMS=500, HOLDMS=340;
+let tapChip=null, tapTimer=0, heldChip=null;
 function endTap(){ clearTimeout(tapTimer); tapChip=null; }
+/* a chip we took the href off, so a desktop lift cannot navigate behind the dialog */
+function restoreHeld(){
+  if(heldChip){
+    if(heldChip.el.isConnected&&heldChip.href) heldChip.el.setAttribute("href",heldChip.href);
+    heldChip=null;
+  }
+}
 resultsBox.addEventListener("pointerdown",e=>{
-  if(!modifyMode) return;
   const a=e.target.closest("a.w"); if(!a) return;
   if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button!==0) return;
-  tapChip={a,x:e.clientX,y:e.clientY,held:false};
+  tapChip={a,x:e.clientX,y:e.clientY,held:false,touch:e.pointerType==="touch"};
   clearTimeout(tapTimer);
-  tapTimer=setTimeout(()=>{ if(tapChip) tapChip.held=true; },TAPMS);
+  tapTimer=setTimeout(()=>{
+    if(!tapChip) return;
+    tapChip.held=true;
+    if(modifyMode) return;             // curating already: the hold stays the browser's
+    /* Fire before iOS raises its own preview (~500ms) and leave the href alone, so the
+       preview still happens and this dialog is simply waiting underneath it. On a mouse
+       there is no preview to protect and the lift would produce a click the host frame
+       turns into a navigation, so there we drop the href instead. */
+    if(!tapChip.touch){
+      heldChip={el:tapChip.a,href:tapChip.a.getAttribute("href")};
+      tapChip.a.removeAttribute("href");
+    }
+    const w=tapChip.a.dataset.w;
+    askRemove(w,()=>{ removed.add(w); saveRemoved(); renderRemoved(); recompute(); });
+  },modifyMode?TAPMS:HOLDMS);
 });
 resultsBox.addEventListener("pointermove",e=>{
   if(tapChip&&Math.abs(e.clientX-tapChip.x)+Math.abs(e.clientY-tapChip.y)>8) endTap();
 });
 window.addEventListener("pointercancel",endTap);
-window.addEventListener("pointerup",e=>{
+window.addEventListener("pointerup",()=>{
   if(!tapChip) return;
   const {a,held}=tapChip; endTap();
+  if(!modifyMode) return;                // normal: taps follow the link, holds get the dialog
   if(held) return;                       // held long enough: leave the link to the browser
   const href=a.getAttribute("href");
   a.removeAttribute("href");             // must happen before the click is dispatched
   toggleListWord(a.dataset.w);
   if(href) setTimeout(()=>{ if(a.isConnected) a.setAttribute("href",href); },0);
 });
+
+/* ---------- confirm before losing a word ---------- */
+const popBack=document.getElementById("popBack");
+let popYes=null;
+function askRemove(w,onYes){
+  document.getElementById("popWord").textContent=w;
+  popYes=onYes; popBack.hidden=false;
+}
+function closePop(){ popBack.hidden=true; popYes=null; restoreHeld(); }
 function toggleListWord(w){
   if(removed.has(w)) removed.delete(w); else removed.add(w);
   saveRemoved(); renderRemoved(); recompute();
@@ -1100,6 +1155,9 @@ gear.onclick=e=>{ e.stopPropagation(); setSettings(sheet.hidden); };
 document.addEventListener("click",e=>{
   if(!sheet.hidden && !e.target.closest("#settings")) setSettings(false);
 });
+$("popOk").onclick=()=>{ const y=popYes; closePop(); if(y) y(); };
+$("popCancel").onclick=closePop;
+popBack.onclick=e=>{ if(e.target===popBack) closePop(); };
 $("btnSubmit").onclick=submitWord;
 $("btnClear").onclick=()=>{ line=[]; renderRack(true); renderLine(); };
 $("btnPlus").onclick=()=>{ if(rack.length<12) newRack(rack.length+1); };
@@ -1139,7 +1197,7 @@ $("filter").addEventListener("input",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
-  if(e.key==="Escape"){ setSettings(false); return; }
+  if(e.key==="Escape"){ setSettings(false); closePop(); return; }
   if(e.key==="Enter"){ e.preventDefault(); submitWord(); }
   else if(e.code==="Space"){ e.preventDefault(); newRack(rack.length); }
   else if(e.key==="s"||e.key==="S"){ $("btnShuffle").click(); }
