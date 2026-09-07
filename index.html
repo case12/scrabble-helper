@@ -489,13 +489,20 @@ function flashHint(txt){
 const STEMS=[["AEIRST",119],["AEINST",108],["AELRST",89],["AENRST",87],["AEINRT",84],
   ["EIORST",84],["AERSST",80],["ADERST",77],["EOPRST",77],["EINRST",76]];
 /* affixes, roughly in order of how many words in the dictionary are a shorter word plus this */
-const AFFIX=[["S","suf"],["ING","suf"],["ED","suf"],["ES","suf"],["LY","suf"],["ER","suf"],
-  ["ERS","suf"],["Y","suf"],["NESS","suf"],["AL","suf"],["IC","suf"],["IER","suf"],["EST","suf"],
-  ["IES","suf"],["ION","suf"],["MENT","suf"],["ABLE","suf"],["OUS","suf"],["FUL","suf"],
-  ["IST","suf"],["ITY","suf"],["IVE","suf"],["AGE","suf"],["ANT","suf"],["ENT","suf"],["OR","suf"],
-  ["UN","pre"],["RE","pre"],["DE","pre"],["IN","pre"],["OVER","pre"],["OUT","pre"],["DIS","pre"],
-  ["PRE","pre"],["BE","pre"],["MIS","pre"],["EX","pre"],["SUB","pre"],["NON","pre"],["IM","pre"],
-  ["MID","pre"],["UP","pre"]];
+const AFFIX=[
+  ["S","suf"],["ING","suf"],["ED","suf"],["ES","suf"],["LY","suf"],["ER","suf"],["ERS","suf"],
+  ["Y","suf"],["INGS","suf"],["NESS","suf"],["AL","suf"],["LESS","suf"],["IEST","suf"],
+  ["IC","suf"],["IER","suf"],["ISM","suf"],["LING","suf"],["LIKE","suf"],["ISE","suf"],
+  ["IZE","suf"],["EST","suf"],["IES","suf"],["ISH","suf"],["ATE","suf"],["EN","suf"],
+  ["SHIP","suf"],["ION","suf"],["TION","suf"],["LET","suf"],["ARY","suf"],["IAN","suf"],
+  ["MENT","suf"],["ABLE","suf"],["OUS","suf"],["FUL","suf"],["IST","suf"],["ITY","suf"],
+  ["IVE","suf"],["AGE","suf"],["ANT","suf"],["ENT","suf"],["OR","suf"],
+  ["UN","pre"],["RE","pre"],["EN","pre"],["CO","pre"],["DE","pre"],["CON","pre"],
+  ["UNDER","pre"],["INTER","pre"],["PRO","pre"],["ANTI","pre"],["SUPER","pre"],["EM","pre"],
+  ["FORE","pre"],["IN","pre"],["OVER","pre"],["OUT","pre"],["MICRO","pre"],["MULTI","pre"],
+  ["POST","pre"],["SEMI","pre"],["AUTO","pre"],["TRANS","pre"],["TELE","pre"],["DIS","pre"],
+  ["PRE","pre"],["BE","pre"],["MIS","pre"],["EX","pre"],["SUB","pre"],["NON","pre"],
+  ["IM","pre"],["MID","pre"],["UP","pre"]];
 
 const VAL={A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
 const BAG={A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
