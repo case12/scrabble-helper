@@ -175,11 +175,15 @@
   .clines .warn{color:var(--accent2)}
   .clines .stem{color:var(--accent)}
   .clines code{font:650 13px var(--mono);color:var(--ink);letter-spacing:.08em}
-  .affixes{display:flex;flex-wrap:wrap;gap:6px}
+  .affixes{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
   .affixes:empty{display:none}
-  .afx{display:inline-flex;align-items:center;gap:6px;background:#1c2a31;border:1px solid #26363e;
-    border-radius:8px;padding:5px 9px;font:600 12.5px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
-  .afx i{font-style:normal;color:var(--dim2);font-size:11px}
+  .affixes .afx{display:inline-flex;align-items:center;gap:6px;background:#1c2a31;
+    border:1px solid #26363e;border-radius:8px;padding:5px 9px;cursor:pointer;
+    font:600 12.5px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
+  .affixes .afx:hover{border-color:var(--accent);color:var(--accent);background:#22333b}
+  .affixes .afx.on{background:var(--accent);border-color:var(--accent);color:#08201a}
+  .affixes .afx i{font-style:normal;color:var(--dim2);font-size:11px}
+  .affixes .afx.on i{color:#0b4436}
   .rowlab{align-self:center;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;
     color:var(--dim2);margin-right:2px}
   .chunks{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -199,7 +203,7 @@
     display:flex;flex-direction:column;gap:16px}
   .pop-q{font-size:14.5px;line-height:1.5;color:var(--dim)}
   .pop-q b{color:var(--ink);font:650 15px var(--mono);letter-spacing:.06em}
-  .pop-actions{display:flex;gap:10px;justify-content:flex-end}
+  .pop-actions{display:flex;gap:24px;justify-content:space-between;margin-top:2px}
   #popOk{background:transparent;border-color:var(--bad);color:var(--bad)}
   #popOk:hover{background:rgba(226,121,106,.14);border-color:var(--bad);color:var(--bad)}
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 6px}
@@ -413,8 +417,8 @@
     <div class="pop">
       <div class="pop-q">Remove <b id="popWord"></b> from your word list?</div>
       <div class="pop-actions">
-        <button class="ghost" id="popCancel">Keep</button>
         <button id="popOk">Remove</button>
+        <button class="ghost" id="popCancel">Keep</button>
       </div>
     </div>
   </div>
@@ -506,6 +510,7 @@ const SRC={
 let DICT=null, TWL=null, DICTCOUNT=0, TWLCOUNT=0;
 let rack=[], listMode="col", srcMode="mw", filter="", results=[], expanded={};
 let line=[], found=new Set(), resultMap=new Map(), allResults=[], allMap=new Map(), modifyMode=false;
+let filterKind="";   // "suf" | "pre" from a chip, "" for whatever you type
 const RKEY="rackattack.removed";
 let removed=new Set();
 try{ const raw=localStorage.getItem(RKEY); if(raw) removed=new Set(JSON.parse(raw)); }catch(e){}
@@ -953,7 +958,10 @@ function section(title,g,key){
 function visible(){
   let l=modifyMode?allResults:results;
   if(listMode==="twl") l=l.filter(r=>r.twl);
-  if(filter) l=l.filter(r=>r.w.includes(filter));
+  if(filter) l=l.filter(r=>
+    filterKind==="suf" ? r.len>filter.length&&r.w.endsWith(filter)
+    : filterKind==="pre" ? r.len>filter.length&&r.w.startsWith(filter)
+    : r.w.includes(filter));
   return l;
 }
 function renderResults(){
@@ -999,7 +1007,7 @@ function fitsIn(str,counts){
 function affixUse(a,kind){
   let n=0;
   for(const r of results){
-    if(r.len<=a.length+1) continue;
+    if(r.len<=a.length) continue;
     if(kind==="suf" ? r.w.endsWith(a) : r.w.startsWith(a)) n++;
   }
   return n;
@@ -1052,14 +1060,15 @@ function renderCoach(){
   const top=av.slice(0,10);
   document.getElementById("affixRow").innerHTML=top.length
     ? `<span class="rowlab">affixes</span>`+top.map(o=>
-        `<span class="afx" title="${o.use} word${o.use===1?"":"s"} in this rack use ${o.kind==="suf"?"-"+o.a:o.a+"-"}">`+
-        `${o.kind==="suf"?"-"+o.a:o.a+"-"}<i>${o.use}</i></span>`).join("")
+        `<button class="afx${filter===o.a&&filterKind===o.kind?" on":""}" data-a="${o.a}" data-k="${o.kind}" `+
+        `title="${o.use} word${o.use===1?"":"s"} in this rack use ${o.kind==="suf"?"-"+o.a:o.a+"-"} &mdash; tap to filter">`+
+        `${o.kind==="suf"?"-"+o.a:o.a+"-"}<i>${o.use}</i></button>`).join("")
     : "";
 
   const bodies=wordBodies();
   document.getElementById("chunkRow").innerHTML=bodies.length
     ? `<span class="rowlab">chunks</span>`+bodies.map(([g,c])=>
-        `<button class="chunk${filter===g?" on":""}" data-g="${g}" `+
+        `<button class="chunk${filter===g&&filterKind==="suf"?" on":""}" data-g="${g}" `+
         `title="${c} words end in -${g} &mdash; tap to filter the list">-${g}<i>${c}</i></button>`).join("")
     : "";
 }
@@ -1202,13 +1211,18 @@ document.addEventListener("click",e=>{
 $("popOk").onclick=()=>{ const y=popYes; closePop(); if(y) y(); };
 $("popCancel").onclick=closePop;
 popBack.onclick=e=>{ if(e.target===popBack) closePop(); };
-$("chunkRow").onclick=e=>{
-  const b=e.target.closest("button.chunk"); if(!b) return;
-  const g=b.dataset.g, off=filter===g;      // tapping the active one clears it
-  filter=off?"":g;
+function tapFilter(text,kind){
+  const off=filter===text&&filterKind===kind;   // tapping the lit chip clears it
+  filter=off?"":text; filterKind=off?"":kind;
   $("filter").value=filter;
   expanded={}; renderResults(); renderCoach();
   if(!off) $("results").scrollIntoView({block:"start",behavior:"smooth"});
+}
+$("chunkRow").onclick=e=>{
+  const b=e.target.closest("button.chunk"); if(b) tapFilter(b.dataset.g,"suf");
+};
+$("affixRow").onclick=e=>{
+  const b=e.target.closest("button.afx"); if(b) tapFilter(b.dataset.a,b.dataset.k);
 };
 $("btnSubmit").onclick=submitWord;
 $("btnClear").onclick=()=>{ line=[]; renderRack(true); renderLine(); };
@@ -1245,6 +1259,7 @@ $("listSeg").onclick=e=>{
 $("src").addEventListener("change",e=>{ srcMode=e.target.value; renderResults(); queueSave(); });
 $("filter").addEventListener("input",e=>{
   filter=e.target.value.toUpperCase().replace(/[^A-Z]/g,"");
+  filterKind="";                              // typing means "contains", as the box says
   expanded={}; renderResults(); renderCoach();
 });
 document.addEventListener("keydown",e=>{
