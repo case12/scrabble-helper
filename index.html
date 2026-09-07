@@ -180,6 +180,17 @@
   .afx{display:inline-flex;align-items:center;gap:6px;background:#1c2a31;border:1px solid #26363e;
     border-radius:8px;padding:5px 9px;font:600 12.5px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
   .afx i{font-style:normal;color:var(--dim2);font-size:11px}
+  .rowlab{align-self:center;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--dim2);margin-right:2px}
+  .chunks{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chunks:empty{display:none}
+  .chunks .chunk{display:inline-flex;align-items:center;gap:6px;background:#1c2a31;
+    border:1px solid #26363e;border-radius:8px;padding:5px 9px;cursor:pointer;
+    font:600 12.5px/1 var(--mono);letter-spacing:.05em;color:var(--ink)}
+  .chunks .chunk:hover{border-color:var(--accent);color:var(--accent);background:#22333b}
+  .chunks .chunk.on{background:var(--accent);border-color:var(--accent);color:#08201a}
+  .chunks .chunk i{font-style:normal;color:var(--dim2);font-size:11px}
+  .chunks .chunk.on i{color:#0b4436}
   .pop-back{position:fixed;inset:0;z-index:90;background:rgba(4,10,12,.6);
     display:flex;align-items:center;justify-content:center;padding:20px}
   .pop-back[hidden]{display:none}
@@ -395,6 +406,7 @@
     <div class="clabel">Coach</div>
     <div class="clines" id="coachLines"></div>
     <div class="affixes" id="affixRow"></div>
+    <div class="chunks" id="chunkRow"></div>
   </div>
 
   <div class="pop-back" id="popBack" hidden>
@@ -992,6 +1004,24 @@ function affixUse(a,kind){
   }
   return n;
 }
+/* A rime is the part an onset attaches to, so anchor to word endings: raw trigram
+   frequency just surfaces mid-word fragments. Plural twins are dropped because the
+   affix row has already said everything -S has to say. */
+function wordBodies(){
+  const AFX=new Set(AFFIX.map(a=>a[0])), cnt=new Map();
+  for(const r of results){
+    for(const n of [3,4]){
+      if(r.len<=n) continue;                     // needs something in front of it
+      const g=r.w.slice(-n);
+      if(AFX.has(g)||!VOWELS.includes(g[0])) continue;
+      if(g.endsWith("S")&&g[g.length-2]!=="S") continue;
+      cnt.set(g,(cnt.get(g)||0)+1);
+    }
+  }
+  return [...cnt].filter(([,c])=>c>=3)
+    .sort((a,b)=>b[1]*(b[0].length-1)-a[1]*(a[0].length-1)||b[0].length-a[0].length)
+    .slice(0,6);
+}
 function renderCoach(){
   const counts={}; let v=0,c=0,blanks=0;
   for(const t of rack){
@@ -1013,11 +1043,25 @@ function renderCoach(){
   document.getElementById("coachLines").innerHTML=lines.map(l=>`<div>${l}</div>`).join("");
 
   const av=[];
-  for(const [a,kind] of AFFIX) if(fitsIn(a,counts)) av.push({a,kind,use:affixUse(a,kind)});
+  for(const [a,kind] of AFFIX){
+    if(!fitsIn(a,counts)) continue;
+    const use=affixUse(a,kind);
+    if(use) av.push({a,kind,use});
+  }
   av.sort((x,y)=>y.use-x.use||x.a.length-y.a.length);
-  document.getElementById("affixRow").innerHTML=av.slice(0,10).map(o=>
-    `<span class="afx" title="${o.use} word${o.use===1?"":"s"} in this rack use ${o.kind==="suf"?"-"+o.a:o.a+"-"}">`+
-    `${o.kind==="suf"?"-"+o.a:o.a+"-"}<i>${o.use}</i></span>`).join("");
+  const top=av.slice(0,10);
+  document.getElementById("affixRow").innerHTML=top.length
+    ? `<span class="rowlab">affixes</span>`+top.map(o=>
+        `<span class="afx" title="${o.use} word${o.use===1?"":"s"} in this rack use ${o.kind==="suf"?"-"+o.a:o.a+"-"}">`+
+        `${o.kind==="suf"?"-"+o.a:o.a+"-"}<i>${o.use}</i></span>`).join("")
+    : "";
+
+  const bodies=wordBodies();
+  document.getElementById("chunkRow").innerHTML=bodies.length
+    ? `<span class="rowlab">chunks</span>`+bodies.map(([g,c])=>
+        `<button class="chunk${filter===g?" on":""}" data-g="${g}" `+
+        `title="${c} words end in -${g} &mdash; tap to filter the list">-${g}<i>${c}</i></button>`).join("")
+    : "";
 }
 function run(noAnim){
   line=[]; expanded={};
@@ -1158,6 +1202,14 @@ document.addEventListener("click",e=>{
 $("popOk").onclick=()=>{ const y=popYes; closePop(); if(y) y(); };
 $("popCancel").onclick=closePop;
 popBack.onclick=e=>{ if(e.target===popBack) closePop(); };
+$("chunkRow").onclick=e=>{
+  const b=e.target.closest("button.chunk"); if(!b) return;
+  const g=b.dataset.g, off=filter===g;      // tapping the active one clears it
+  filter=off?"":g;
+  $("filter").value=filter;
+  expanded={}; renderResults(); renderCoach();
+  if(!off) $("results").scrollIntoView({block:"start",behavior:"smooth"});
+};
 $("btnSubmit").onclick=submitWord;
 $("btnClear").onclick=()=>{ line=[]; renderRack(true); renderLine(); };
 $("btnPlus").onclick=()=>{ if(rack.length<12) newRack(rack.length+1); };
@@ -1193,7 +1245,7 @@ $("listSeg").onclick=e=>{
 $("src").addEventListener("change",e=>{ srcMode=e.target.value; renderResults(); queueSave(); });
 $("filter").addEventListener("input",e=>{
   filter=e.target.value.toUpperCase().replace(/[^A-Z]/g,"");
-  expanded={}; renderResults();
+  expanded={}; renderResults(); renderCoach();
 });
 document.addEventListener("keydown",e=>{
   if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
